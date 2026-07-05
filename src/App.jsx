@@ -11,6 +11,7 @@ import ScanReport from './pages/ScanReport';
 import Plans from './pages/Plans';
 import PaymentProof from './pages/PaymentProof';
 import ScanHistory from './pages/ScanHistory';
+import FeedbackStudio from './pages/FeedbackStudio';
 
 export default function App() {
   return (
@@ -32,6 +33,16 @@ export default function App() {
           {/* Public */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* Protected — Standalone Full-screen */}
+          <Route
+            path="/feedback-studio/:id"
+            element={
+              <ProtectedRoute>
+                <FeedbackStudio />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Protected — Dashboard Layout */}
           <Route

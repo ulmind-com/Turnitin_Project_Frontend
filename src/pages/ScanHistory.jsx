@@ -37,7 +37,7 @@ export default function ScanHistory() {
           <h1 className="text-2xl font-bold text-text-primary">Scan History</h1>
           <p className="text-text-secondary mt-1">View and manage all your past document analyses.</p>
         </div>
-        <Link to="/scan" className="btn-primary">New Scan</Link>
+        <Link to="/upload" className="btn-primary">New Scan</Link>
       </div>
 
       {loading ? (
@@ -81,9 +81,12 @@ export default function ScanHistory() {
                     </span>
                   </div>
                   
-                  <div className="col-span-2 text-right">
-                    <Link to={`/report/${doc.id}`} className="text-sm font-semibold text-accent-primary hover:underline">
-                      View Report
+                  <div className="col-span-2 text-right flex justify-end gap-2.5">
+                    <Link to={`/report/${doc.id}`} className="text-xs font-bold text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 transition-all">
+                      Report
+                    </Link>
+                    <Link to={`/feedback-studio/${doc.id}`} className="text-xs font-bold text-blue-600 hover:text-white border border-blue-200 hover:border-blue-600 rounded-lg px-2.5 py-1.5 hover:bg-blue-600 transition-all">
+                      Grade
                     </Link>
                   </div>
                 </div>
@@ -98,7 +101,7 @@ export default function ScanHistory() {
           </div>
           <h3 className="text-xl font-bold text-text-primary mb-2">No documents found</h3>
           <p className="mb-6">Upload your first document to see the analysis results here.</p>
-          <Link to="/scan" className="btn-primary">Start your first scan</Link>
+          <Link to="/upload" className="btn-primary">Start your first scan</Link>
         </div>
       )}
     </div>
