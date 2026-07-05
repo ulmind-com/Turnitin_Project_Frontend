@@ -389,6 +389,71 @@ export default function ScanReport() {
             )}
           </div>
 
+          {/* Integrity Overview Card */}
+          <div className="clean-card p-6">
+            <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4">Integrity Overview</h3>
+            
+            {doc?.integrity_flags && doc.integrity_flags.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700">
+                  <HiOutlineExclamationCircle className="text-2xl flex-shrink-0 animate-bounce" />
+                  <div className="text-left">
+                    <p className="text-sm font-bold">{doc.integrity_flags.length} Integrity Warning(s)</p>
+                    <p className="text-xs text-red-600">Possible scan evasion tactics detected.</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {doc.integrity_flags.map((flag, idx) => (
+                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-left">
+                      <p className="text-xs font-bold text-red-600 uppercase tracking-wider">{flag.type}</p>
+                      <p className="text-sm text-text-primary mt-1 leading-relaxed">{flag.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold">0 Integrity Flags</p>
+                  <p className="text-xs text-emerald-600">No evasion tactics detected.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Document Metadata Card */}
+          {doc?.metadata && (
+            <div className="clean-card p-6 text-left">
+              <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4">Document Metadata</h3>
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <p className="text-text-secondary font-medium mb-0.5">Pages</p>
+                  <p className="text-base font-bold text-text-primary">{doc.metadata.page_count || 1}</p>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <p className="text-text-secondary font-medium mb-0.5">Tokens / Words</p>
+                  <p className="text-base font-bold text-text-primary">{doc.metadata.token_count || 0}</p>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <p className="text-text-secondary font-medium mb-0.5">Characters</p>
+                  <p className="text-base font-bold text-text-primary">{doc.metadata.character_count || 0}</p>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                  <p className="text-text-secondary font-medium mb-0.5">File Size</p>
+                  <p className="text-base font-bold text-text-primary">
+                    {doc.metadata.file_size ? `${(doc.metadata.file_size / 1024).toFixed(1)} KB` : 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Matched Sources */}
           {doc?.plagiarism_result?.matched_sources?.length > 0 && (
             <div className="clean-card overflow-hidden">

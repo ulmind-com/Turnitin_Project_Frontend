@@ -116,10 +116,21 @@ export default function UploadDocument() {
             </div>
             
             {file ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="font-semibold text-text-primary text-lg">{file.name}</p>
-                  <p className="text-sm text-text-secondary">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+              <div className="space-y-4 w-full max-w-md mx-auto">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-left space-y-2">
+                  <h4 className="font-bold text-text-primary text-sm border-b pb-2 mb-2 flex items-center gap-2">
+                    <HiOutlineDocumentText className="text-accent-primary text-lg" /> Local File Metadata
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <span className="text-text-secondary font-medium">Name:</span>
+                    <span className="col-span-2 text-text-primary truncate font-semibold">{file.name}</span>
+
+                    <span className="text-text-secondary font-medium">Size:</span>
+                    <span className="col-span-2 text-text-primary font-semibold">{(file.size / 1024).toFixed(1)} KB ({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+
+                    <span className="text-text-secondary font-medium">Last Modified:</span>
+                    <span className="col-span-2 text-text-primary font-semibold">{new Date(file.lastModified).toLocaleString()}</span>
+                  </div>
                 </div>
                 <div className="flex justify-center gap-3">
                   <button onClick={() => setFile(null)} className="btn-secondary text-sm">
