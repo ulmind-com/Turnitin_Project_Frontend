@@ -1,162 +1,189 @@
-import { useState, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { HiOutlineUpload, HiOutlineDocumentText, HiOutlineX } from 'react-icons/hi';
+import { HiOutlineCloudUpload, HiOutlineDocumentText } from 'react-icons/hi';
+import { useAuth } from '../context/AuthContext';
 
 export default function UploadDocument() {
   const [file, setFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const { user, fetchProfile } = useAuth();
   const navigate = useNavigate();
 
-  const handleDrop = (e) => {
+  const handleDrag = useCallback((e) => {
     e.preventDefault();
-    setDragOver(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) validateAndSetFile(droppedFile);
-  };
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') setIsDragging(true);
+    else if (e.type === 'dragleave') setIsDragging(false);
+  }, []);
 
-  const validateAndSetFile = (f) => {
-    const ext = f.name.split('.').pop().toLowerCase();
-    if (!['pdf', 'docx'].includes(ext)) {
-      toast.error('INVALID FORMAT - PDF/DOCX ONLY', { style: { background: '#000', color: '#ff003c', border: '1px solid #ff003c' }});
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  }, []);
+
+  const handleFileSelect = (selectedFile) => {
+    if (!selectedFile) return;
+    
+    // File validation
+    const validTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!validTypes.includes(selectedFile.type)) {
+      toast.error('Invalid file type. Please upload a TXT, PDF, or DOCX file.');
       return;
     }
-    if (f.size > 10 * 1024 * 1024) {
-      toast.error('FILE EXCEEDS 10MB LIMIT', { style: { background: '#000', color: '#ff003c', border: '1px solid #ff003c' }});
+    if (selectedFile.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('File is too large. Maximum size is 10MB.');
       return;
     }
-    setFile(f);
+    
+    setFile(selectedFile);
   };
 
   const handleUpload = async () => {
-    if (!file) return;
-    setUploading(true);
+    if (!file) {
+      toast.error('Please select a file first.');
+      return;
+    }
 
+    if (user?.credits <= 0) {
+      toast.error('Insufficient credits. Please purchase a plan.');
+      navigate('/plans');
+      return;
+    }
+
+    setLoading(true);
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-      const res = await api.post('/api/documents/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      toast.success('DATA ACCEPTED - INITIALIZING SCAN', { style: { background: '#000', color: '#00f0ff', border: '1px solid #00f0ff' }});
-      navigate(`/report/${res.data.id}`);
+      const res = await api.post('/api/documents/upload', formData);
+      toast.success('Document uploaded successfully!');
+      
+      // Update local credits immediately
+      await fetchProfile();
+      
+      // The backend returns scan_id = null if scanning happens async, or document ID
+      const docId = res.data.document_id;
+      if (docId) {
+        navigate(`/report/${docId}`);
+      } else {
+        navigate('/history');
+      }
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'TRANSFER FAILED', { style: { background: '#000', color: '#ff003c', border: '1px solid #ff003c' }});
+      const errorMsg = err.response?.data?.detail || 'Upload failed. Please try again.';
+      toast.error(errorMsg);
+      if (err.response?.status === 402) {
+        navigate('/plans');
+      }
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto fade-in relative z-10">
-      <div className="border-b border-accent-primary/20 pb-4 mb-8 relative">
-        <div className="absolute bottom-0 right-0 w-32 h-[1px] bg-accent-primary shadow-[0_0_10px_rgba(0,240,255,1)]" />
-        <h1 className="text-3xl font-display font-bold text-text-primary uppercase tracking-widest">
-          Target <span className="text-neon-cyan glitch-hover">Acquisition</span>
-        </h1>
-        <p className="text-text-muted font-mono text-xs mt-2 uppercase tracking-[0.2em]">Deploy documents for deep-scan analysis</p>
+    <div className="fade-in max-w-4xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-text-primary">New Scan</h1>
+        <p className="text-text-secondary mt-1">Upload a document to check for plagiarism and AI-generated content.</p>
       </div>
 
-      {/* Drop Zone */}
-      <div
-        className={`cyber-card p-12 text-center cursor-pointer transition-all duration-300 relative overflow-hidden group ${
-          dragOver ? 'border-accent-primary bg-accent-primary/10 shadow-[inset_0_0_30px_rgba(0,240,255,0.2)]' : 'bg-black/40'
-        } ${file ? 'border-accent-success/50 bg-accent-success/5' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-        onClick={() => !uploading && fileInputRef.current?.click()}
-      >
-        {/* Animated Laser Scan Line (Active when dragging or processing) */}
-        {(dragOver || uploading) && <div className="scan-line-anim" />}
-        
-        {/* Grid Background */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(0, 240, 255, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 240, 255, 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf,.docx"
-          onChange={(e) => e.target.files[0] && validateAndSetFile(e.target.files[0])}
-          className="hidden"
-          disabled={uploading}
-        />
-
-        <div className="relative z-10">
-          {!file ? (
-            <>
-              <div className="w-20 h-20 bg-black border border-accent-primary/50 flex items-center justify-center mx-auto mb-6 transition-all group-hover:border-accent-primary group-hover:shadow-[0_0_20px_rgba(0,240,255,0.4)]" style={{ clipPath: 'polygon(25% 0%, 100% 0, 100% 75%, 75% 100%, 0 100%, 0% 25%)' }}>
-                <HiOutlineUpload className="text-4xl text-accent-primary/50 group-hover:text-neon-cyan transition-all" />
-              </div>
-              <p className="text-xl font-display font-bold text-text-primary mb-2 uppercase tracking-widest group-hover:text-neon-cyan transition-colors">
-                Transmit File
-              </p>
-              <p className="text-xs font-mono text-text-muted uppercase tracking-[0.1em]">DRAG & DROP OR CLICK TO INITIATE TRANSFER</p>
-              <div className="mt-6 flex justify-center gap-4">
-                <span className="cyber-badge badge-cyan">PDF</span>
-                <span className="cyber-badge badge-cyan">DOCX</span>
-                <span className="cyber-badge border-text-muted text-text-muted">MAX 10MB</span>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-4">
-              <div className="w-16 h-16 bg-accent-success/10 border border-accent-success flex items-center justify-center shadow-[0_0_20px_rgba(0,255,65,0.3)] animate-pulse" style={{ clipPath: 'polygon(25% 0%, 100% 0, 100% 75%, 75% 100%, 0 100%, 0% 25%)' }}>
-                <HiOutlineDocumentText className="text-3xl text-neon-green" />
-              </div>
-              <div>
-                <p className="text-lg font-display font-bold text-neon-green uppercase tracking-wider">{file.name}</p>
-                <p className="text-xs font-mono text-text-muted uppercase mt-1">SIZE: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
-              </div>
-              {!uploading && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                  className="mt-4 flex items-center gap-2 text-xs font-mono text-accent-danger hover:text-white transition-colors"
-                >
-                  <HiOutlineX /> ABORT UPLOAD
-                </button>
-              )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-2 space-y-6">
+          {/* Upload Area */}
+          <div 
+            className={`clean-card p-10 flex flex-col items-center justify-center text-center transition-all duration-200 border-2 border-dashed ${
+              isDragging ? 'border-accent-primary bg-blue-50' : 'border-slate-300 hover:border-slate-400 bg-white'
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${
+              isDragging ? 'bg-accent-primary text-white' : 'bg-slate-100 text-slate-500'
+            }`}>
+              {file ? <HiOutlineDocumentText className="text-3xl" /> : <HiOutlineCloudUpload className="text-3xl" />}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Upload Button */}
-      {file && (
-        <div className="mt-8 flex justify-end fade-in">
-          <button onClick={handleUpload} className="btn-cyber w-full md:w-auto" disabled={uploading}>
-            {uploading ? (
-              <span className="flex items-center gap-3 relative z-10">
-                <div className="w-4 h-4 border-2 border-accent-primary border-t-transparent rounded-full animate-spin" />
-                TRANSMITTING DATA...
-              </span>
+            
+            {file ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="font-semibold text-text-primary text-lg">{file.name}</p>
+                  <p className="text-sm text-text-secondary">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+                <div className="flex justify-center gap-3">
+                  <button onClick={() => setFile(null)} className="btn-secondary text-sm">
+                    Remove File
+                  </button>
+                  <button 
+                    onClick={handleUpload} 
+                    className="btn-primary text-sm min-w-[140px]" 
+                    disabled={loading}
+                  >
+                    {loading ? 'Processing...' : 'Start Scan'}
+                  </button>
+                </div>
+              </div>
             ) : (
-              <span className="relative z-10 text-lg">INITIATE SCAN PROTOCOL</span>
+              <div>
+                <h3 className="text-lg font-semibold text-text-primary mb-2">Drag & drop your file here</h3>
+                <p className="text-sm text-text-secondary mb-6">or click the button below to browse</p>
+                
+                <input 
+                  type="file" 
+                  id="file-upload" 
+                  className="hidden" 
+                  accept=".txt,.pdf,.doc,.docx" 
+                  onChange={(e) => handleFileSelect(e.target.files[0])} 
+                />
+                <label htmlFor="file-upload" className="btn-primary cursor-pointer">
+                  Browse Files
+                </label>
+              </div>
             )}
-          </button>
+          </div>
         </div>
-      )}
 
-      {/* Info */}
-      <div className="mt-12 cyber-card p-6 bg-black/40 border-accent-primary/20">
-        <h3 className="text-xs font-display font-bold text-accent-primary mb-4 uppercase tracking-[0.2em]">Operational Sequence</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            'ESTABLISH SECURE CONNECTION & UPLOAD TARGET FILE',
-            'SYSTEM CHUNKS TEXT INTO MANAGEABLE DATA BLOCKS',
-            'CROSS-REFERENCE AGAINST GLOBAL WEB DATABASES',
-            'AI PATTERN RECOGNITION & NEURAL ANALYSIS',
-          ].map((step, i) => (
-            <div key={i} className="flex items-start gap-4 p-3 bg-white/5 border border-white/5 hover:border-accent-primary/30 transition-colors group">
-              <span className="w-6 h-6 bg-accent-primary/10 border border-accent-primary/30 flex items-center justify-center text-[10px] font-mono font-bold text-accent-primary flex-shrink-0 group-hover:bg-accent-primary group-hover:text-black transition-colors" style={{ clipPath: 'polygon(25% 0%, 100% 0, 100% 75%, 75% 100%, 0 100%, 0% 25%)' }}>
-                0{i + 1}
-              </span>
-              <p className="text-[10px] font-mono text-text-secondary mt-1 group-hover:text-text-primary transition-colors">{step}</p>
+        {/* Info Sidebar */}
+        <div className="space-y-6">
+          <div className="clean-card p-6">
+            <h3 className="font-semibold text-text-primary mb-4">Scan Information</h3>
+            <ul className="space-y-4 text-sm text-text-secondary">
+              <li className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-accent-primary font-bold text-xs">1</div>
+                <p>Upload a PDF, Word Doc, or Text file (Max 10MB).</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-accent-primary font-bold text-xs">2</div>
+                <p>One scan costs exactly <strong>1 credit</strong>.</p>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center flex-shrink-0 text-accent-primary font-bold text-xs">3</div>
+                <p>Results are typically ready in under a minute.</p>
+              </li>
+            </ul>
+          </div>
+          
+          <div className="clean-card p-6 bg-slate-50 border-transparent">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-text-primary">Your Credits</span>
+              <span className="text-lg font-bold text-accent-primary">{user?.credits}</span>
             </div>
-          ))}
+            {user?.credits === 0 && (
+              <div className="mt-4">
+                <p className="text-xs text-red-600 mb-3">You don't have enough credits to perform a scan.</p>
+                <button onClick={() => navigate('/plans')} className="btn-primary w-full text-sm">
+                  Get More Credits
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

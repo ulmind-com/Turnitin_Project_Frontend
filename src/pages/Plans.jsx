@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import toast from 'react-hot-toast';
-import { HiOutlineBadgeCheck, HiOutlineLightningBolt, HiOutlineShieldCheck } from 'react-icons/hi';
+import { HiOutlineCheck } from 'react-icons/hi';
 
 export default function Plans() {
   const [plans, setPlans] = useState([]);
@@ -10,107 +9,84 @@ export default function Plans() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const res = await api.get('/api/plans');
+        setPlans(res.data.plans || []);
+      } catch (error) {
+        console.error('Failed to fetch plans', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchPlans();
   }, []);
 
-  const fetchPlans = async () => {
-    try {
-      const res = await api.get('/api/plans');
-      setPlans(res.data.plans || []);
-    } catch (err) {
-      toast.error('Failed to load access protocols');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const planIcons = [HiOutlineBadgeCheck, HiOutlineLightningBolt, HiOutlineShieldCheck];
-  const planColors = ['accent-primary', 'accent-secondary', 'accent-success'];
-  const neonColors = ['neon-cyan', 'neon-purple', 'neon-green'];
-
-  if (loading) {
-    return (
-      <div className="space-y-6 fade-in relative z-10">
-        <div className="skeleton h-8 w-48 bg-accent-primary/20" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[...Array(3)].map((_, i) => <div key={i} className="skeleton h-80 cyber-card" />)}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="fade-in relative z-10">
-      <div className="border-b border-accent-primary/20 pb-4 mb-8 relative">
-        <div className="absolute bottom-0 right-0 w-32 h-[1px] bg-accent-primary shadow-[0_0_10px_rgba(0,240,255,1)]" />
-        <h1 className="text-3xl font-display font-bold text-text-primary uppercase tracking-widest">
-          Access <span className="text-neon-cyan glitch-hover">Protocols</span>
-        </h1>
-        <p className="text-text-muted font-mono text-xs mt-2 uppercase tracking-[0.2em]">Acquire operational clearance & scan credits</p>
+    <div className="fade-in max-w-6xl mx-auto py-8">
+      <div className="text-center mb-16">
+        <h1 className="text-4xl font-bold text-text-primary mb-4">Simple, transparent pricing</h1>
+        <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+          Choose the plan that best fits your needs. Buy credits once and use them whenever you want. No expiring credits.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {plans.map((plan, i) => {
-          const Icon = planIcons[i] || HiOutlineBadgeCheck;
-          const colorClass = planColors[i] || 'accent-primary';
-          const neonText = neonColors[i] || 'neon-cyan';
-          const isPro = i === 1;
-
-          return (
-            <div key={plan.id} className={`cyber-card relative group hover:-translate-y-2 transition-transform duration-300 ${isPro ? `border-${colorClass} shadow-[0_0_30px_rgba(188,19,254,0.15)]` : `border-${colorClass}/30`}`}>
-              {/* Highlight bar for PRO plan */}
-              {isPro && <div className="absolute top-0 left-0 w-full h-1 bg-accent-secondary shadow-[0_0_10px_rgba(188,19,254,0.8)]" />}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-96 bg-slate-200 rounded-3xl animate-pulse" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          {plans.map((plan, index) => (
+            <div key={plan.id} className={`clean-card p-8 flex flex-col relative ${index === 1 ? 'border-2 border-accent-primary transform md:-translate-y-4 shadow-xl' : 'border border-border'}`}>
+              {index === 1 && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-accent-primary text-white text-xs font-bold px-4 py-1 rounded-full uppercase tracking-wider">
+                  Most Popular
+                </div>
+              )}
               
-              <div className={`p-6 bg-${colorClass}/5 border-b border-${colorClass}/20 relative overflow-hidden`}>
-                <div className={`absolute top-0 right-0 w-32 h-32 bg-${colorClass}/10 rounded-full blur-2xl pointer-events-none group-hover:bg-${colorClass}/20 transition-colors`} />
-                <div className="flex justify-between items-start mb-4">
-                  <div className={`w-12 h-12 bg-black border border-${colorClass} flex items-center justify-center relative shadow-[0_0_15px_rgba(var(--color-${colorClass}),0.3)]`} style={{ clipPath: 'polygon(25% 0%, 100% 0, 100% 75%, 75% 100%, 0 100%, 0% 25%)' }}>
-                    <Icon className={`text-2xl text-${colorClass}`} />
-                  </div>
-                  {isPro && (
-                    <span className="cyber-badge badge-purple bg-accent-secondary/20">RECOMMENDED</span>
-                  )}
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold text-text-primary mb-2">{plan.name}</h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-extrabold text-text-primary">₹{plan.price}</span>
                 </div>
-                <h3 className={`text-xl font-display font-bold text-${neonText} uppercase tracking-widest`}>{plan.name}</h3>
-                <p className="text-[10px] font-mono text-text-muted mt-2 uppercase tracking-[0.1em]">{plan.description}</p>
+                <p className="text-sm font-semibold text-accent-primary mt-2">{plan.credits} Scans Included</p>
               </div>
-
-              <div className="p-6 space-y-8 bg-black/40">
-                <div className="flex items-baseline gap-2 border-b border-white/5 pb-4">
-                  <span className={`text-4xl font-display font-bold text-text-primary group-hover:text-${neonText} transition-colors`}>₹{plan.price}</span>
-                  <span className="text-text-muted font-mono text-xs uppercase tracking-widest">/ INITIATION</span>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-5 h-5 flex items-center justify-center mt-0.5`} style={{ clipPath: 'polygon(0 50%, 100% 0, 100% 100%)', backgroundColor: `var(--color-${colorClass})` }} />
-                    <span className="text-xs font-mono text-text-secondary leading-relaxed uppercase"><strong className={`text-${colorClass}`}>{plan.credits}</strong> TARGET SCANS</span>
+              
+              <ul className="space-y-4 mb-8 flex-1">
+                <li className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <HiOutlineCheck className="text-emerald-600 text-sm" />
                   </div>
-                  <div className="flex items-start gap-3">
-                    <div className={`w-5 h-5 flex items-center justify-center mt-0.5 opacity-70`} style={{ clipPath: 'polygon(0 50%, 100% 0, 100% 100%)', backgroundColor: `var(--color-${colorClass})` }} />
-                    <span className="text-[11px] font-mono text-text-secondary leading-relaxed uppercase">Neural Plagiarism Detection</span>
+                  <span className="text-sm text-text-secondary">Plagiarism detection</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <HiOutlineCheck className="text-emerald-600 text-sm" />
                   </div>
-                  <div className="flex items-start gap-3">
-                    <div className={`w-5 h-5 flex items-center justify-center mt-0.5 opacity-70`} style={{ clipPath: 'polygon(0 50%, 100% 0, 100% 100%)', backgroundColor: `var(--color-${colorClass})` }} />
-                    <span className="text-[11px] font-mono text-text-secondary leading-relaxed uppercase">AI Pattern Analysis</span>
+                  <span className="text-sm text-text-secondary">AI content detection</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <HiOutlineCheck className="text-emerald-600 text-sm" />
                   </div>
-                  <div className="flex items-start gap-3">
-                    <div className={`w-5 h-5 flex items-center justify-center mt-0.5 opacity-70`} style={{ clipPath: 'polygon(0 50%, 100% 0, 100% 100%)', backgroundColor: `var(--color-${colorClass})` }} />
-                    <span className="text-[11px] font-mono text-text-secondary leading-relaxed uppercase">Deep Source Cross-Ref</span>
+                  <span className="text-sm text-text-secondary">Detailed PDF Reports</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <HiOutlineCheck className="text-emerald-600 text-sm" />
                   </div>
-                </div>
-
-                <button
-                  onClick={() => navigate(`/payment/${plan.id}`)}
-                  className={`btn-cyber w-full group overflow-hidden ${isPro ? '!border-accent-secondary !text-accent-secondary hover:!bg-accent-secondary/10 hover:!shadow-[0_0_15px_rgba(188,19,254,0.4)]' : `!border-${colorClass} !text-${colorClass} hover:!bg-${colorClass}/10`}`}
-                >
-                  <span className="relative z-10">{isPro ? 'REQUEST CLEARANCE (PRO)' : 'REQUEST CLEARANCE'}</span>
-                </button>
-              </div>
+                  <span className="text-sm text-text-secondary">Never expires</span>
+                </li>
+              </ul>
+              
+              <button onClick={() => navigate(`/payment/${plan.id}`)} className={`w-full py-3 rounded-xl font-bold transition-colors ${index === 1 ? 'bg-accent-primary text-white hover:bg-[#005bb5]' : 'bg-slate-100 text-text-primary hover:bg-slate-200'}`}>
+                Get Started
+              </button>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

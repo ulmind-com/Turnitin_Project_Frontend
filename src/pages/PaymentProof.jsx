@@ -1,167 +1,158 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { HiOutlineUpload, HiOutlineArrowLeft, HiOutlineClipboardCopy, HiOutlineCurrencyRupee } from 'react-icons/hi';
+import { HiOutlineCloudUpload, HiOutlineShieldCheck, HiOutlineCreditCard } from 'react-icons/hi';
 
 export default function PaymentProof() {
   const { planId } = useParams();
   const [plan, setPlan] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [transactionId, setTransactionId] = useState('');
   const [screenshot, setScreenshot] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    const fetchPlan = async () => {
+      try {
+        const res = await api.get('/api/plans');
+        const found = res.data.plans?.find(p => p.id === parseInt(planId));
+        if (found) setPlan(found);
+        else {
+          toast.error('Plan not found');
+          navigate('/plans');
+        }
+      } catch (err) {
+        toast.error('Failed to load plan details');
+        navigate('/plans');
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchPlan();
-  }, [planId]);
-
-  const fetchPlan = async () => {
-    try {
-      const res = await api.get(`/api/plans/${planId}`);
-      setPlan(res.data);
-    } catch (err) {
-      toast.error('PROTOCOL NOT FOUND', { style: { background: '#000', color: '#ff003c', border: '1px solid #ff003c' }});
-      navigate('/plans');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [planId, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!screenshot) {
-      toast.error('VISUAL PROOF REQUIRED', { style: { background: '#000', color: '#f59e0b', border: '1px solid #f59e0b' }});
+      toast.error('Please upload a screenshot of your payment');
       return;
     }
     setSubmitting(true);
-
     const formData = new FormData();
     formData.append('plan_id', planId);
     formData.append('transaction_id', transactionId);
     formData.append('screenshot', screenshot);
 
     try {
-      await api.post('/api/payments/submit', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      toast.success('TRANSACTION SUBMITTED. AWAITING CLEARANCE.', { style: { background: '#000', color: '#00f0ff', border: '1px solid #00f0ff' }});
-      navigate('/dashboard');
+      await api.post('/api/payments/submit', formData);
+      toast.success('Payment submitted successfully! Waiting for admin approval.');
+      navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'TRANSMISSION FAILED', { style: { background: '#000', color: '#ff003c', border: '1px solid #ff003c' }});
+      toast.error(err.response?.data?.detail || 'Failed to submit payment');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    toast.success('COPIED TO CLIPBOARD', { icon: '📋', style: { background: '#000', color: '#00f0ff', border: '1px solid #00f0ff' }});
-  };
-
-  if (loading) {
-    return <div className="skeleton h-96 cyber-card max-w-2xl mx-auto" />;
-  }
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="w-12 h-12 border-4 border-slate-200 border-t-accent-primary rounded-full animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="max-w-2xl mx-auto fade-in relative z-10">
-      <button onClick={() => navigate('/plans')} className="inline-flex items-center gap-2 text-[10px] font-mono text-text-secondary hover:text-neon-cyan transition-colors mb-6 uppercase tracking-widest">
-        <HiOutlineArrowLeft /> ABORT TRANSACTION
-      </button>
-
-      <div className="border-b border-accent-secondary/20 pb-4 mb-8 relative">
-        <div className="absolute bottom-0 right-0 w-32 h-[1px] bg-accent-secondary shadow-[0_0_10px_rgba(188,19,254,1)]" />
-        <h1 className="text-3xl font-display font-bold text-text-primary uppercase tracking-widest">
-          Secure <span className="text-neon-purple glitch-hover">Transaction</span>
-        </h1>
-        <p className="text-text-muted font-mono text-xs mt-2 uppercase tracking-[0.2em]">Authorize payment for <span className="text-accent-secondary">{plan?.name}</span> clearance</p>
+    <div className="fade-in max-w-4xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-text-primary">Complete Your Purchase</h1>
+        <p className="text-text-secondary mt-1">Submit your payment details to get access to {plan?.name}</p>
       </div>
 
-      {/* Payment Details Card */}
-      <div className="cyber-card p-6 mb-8 border-accent-secondary/30 bg-black/40 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-2 h-full bg-accent-secondary shadow-[0_0_15px_rgba(188,19,254,0.8)]" />
-        <h3 className="text-[11px] font-display font-bold text-accent-secondary uppercase tracking-[0.2em] mb-6">Transaction Parameters</h3>
-        
-        <div className="space-y-4 ml-4">
-          <div className="flex items-center justify-between p-4 bg-accent-secondary/5 border border-accent-secondary/20" style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}>
-            <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest">Required Funds</span>
-            <span className="text-xl font-bold font-display text-neon-purple flex items-center gap-1"><HiOutlineCurrencyRupee /> {plan?.price}</span>
-          </div>
-          <div className="flex items-center justify-between p-4 bg-accent-primary/5 border border-accent-primary/20" style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}>
-            <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest">Clearance Level</span>
-            <span className="text-sm font-bold font-mono text-neon-cyan">{plan?.credits} SCANS</span>
-          </div>
-          <div className="p-4 bg-black/50 border border-white/5" style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-mono text-text-muted uppercase tracking-widest">Destination Node (UPI)</span>
-              <button onClick={() => copyToClipboard('scanvault@upi')} className="text-[9px] font-mono font-bold text-accent-secondary hover:text-white transition-colors flex items-center gap-1 uppercase tracking-widest">
-                [COPY] <HiOutlineClipboardCopy />
-              </button>
-            </div>
-            <p className="text-lg font-mono text-text-primary tracking-wider">scanvault@upi</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Submission Form */}
-      <form onSubmit={handleSubmit} className="cyber-card p-8 bg-black/60 relative">
-        <div className="absolute top-0 right-4 w-12 h-1 bg-accent-secondary shadow-[0_0_10px_rgba(188,19,254,0.8)]" />
-        <h3 className="text-[11px] font-display font-bold text-accent-primary uppercase tracking-[0.2em] mb-6">Submit Verification</h3>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Payment Details */}
         <div className="space-y-6">
-          <div>
-            <label className="block text-[10px] font-mono text-text-secondary mb-2 uppercase tracking-[0.15em]">Transaction ID (UTR)</label>
-            <input
-              type="text"
-              value={transactionId}
-              onChange={(e) => setTransactionId(e.target.value)}
-              className="input-cyber"
-              placeholder="ENTER 12-DIGIT UTR..."
-              required
-              minLength={3}
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-mono text-text-secondary mb-2 uppercase tracking-[0.15em]">Visual Proof (Screenshot)</label>
-            <div
-              className={`border border-dashed p-8 text-center cursor-pointer transition-all ${
-                screenshot ? 'border-accent-success/50 bg-accent-success/5' : 'border-accent-primary/30 hover:border-accent-primary hover:bg-accent-primary/5'
-              }`}
-              style={{ clipPath: 'polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px)' }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => setScreenshot(e.target.files[0])}
-                className="hidden"
-              />
-              {screenshot ? (
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-8 h-8 bg-accent-success/20 flex items-center justify-center rounded-full">
-                    <HiOutlineUpload className="text-neon-green text-lg" />
-                  </div>
-                  <span className="text-sm font-mono text-neon-green">{screenshot.name}</span>
-                </div>
-              ) : (
-                <>
-                  <HiOutlineUpload className="text-3xl text-accent-primary/50 mx-auto mb-3" />
-                  <p className="text-sm font-display font-bold text-text-primary uppercase tracking-widest">Select Image File</p>
-                  <p className="text-[10px] font-mono text-text-muted mt-2 tracking-widest uppercase">ACCEPTED: JPEG, PNG, WEBP</p>
-                </>
-              )}
+          <div className="clean-card p-6 bg-slate-50 border-transparent">
+            <h3 className="font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <HiOutlineCreditCard className="text-xl text-accent-primary" /> Order Summary
+            </h3>
+            <div className="flex justify-between items-center py-3 border-b border-border">
+              <span className="text-text-secondary">Plan</span>
+              <span className="font-semibold text-text-primary">{plan?.name}</span>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-border">
+              <span className="text-text-secondary">Credits</span>
+              <span className="font-semibold text-text-primary">{plan?.credits} Scans</span>
+            </div>
+            <div className="flex justify-between items-center py-3">
+              <span className="text-text-primary font-bold">Total Amount</span>
+              <span className="text-2xl font-bold text-accent-primary">₹{plan?.price}</span>
             </div>
           </div>
 
-          <button type="submit" className="btn-cyber w-full mt-4" disabled={submitting}>
-            {submitting ? 'TRANSMITTING...' : 'AUTHORIZE VERIFICATION'}
-          </button>
+          <div className="clean-card p-6 border-accent-primary bg-blue-50/50">
+            <h3 className="font-bold text-text-primary mb-4 flex items-center gap-2">
+              <HiOutlineShieldCheck className="text-xl text-emerald-600" /> Payment Instructions
+            </h3>
+            <p className="text-sm text-text-secondary mb-4">Please scan the QR code below or transfer the amount to the provided UPI ID.</p>
+            <div className="bg-white p-4 rounded-xl border border-border text-center">
+              <div className="w-48 h-48 bg-slate-100 mx-auto mb-4 border border-border flex items-center justify-center">
+                <span className="text-slate-400">QR CODE HERE</span>
+              </div>
+              <p className="font-mono font-bold text-text-primary">merchant@upi</p>
+            </div>
+          </div>
         </div>
-      </form>
+
+        {/* Submission Form */}
+        <div className="clean-card p-8">
+          <h3 className="text-xl font-bold text-text-primary mb-6">Submit Proof</h3>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-sm font-semibold text-text-primary mb-2">Transaction ID / UTR</label>
+              <input 
+                type="text" 
+                value={transactionId} 
+                onChange={(e) => setTransactionId(e.target.value)} 
+                className="input-field" 
+                placeholder="e.g. 31234567890" 
+                required 
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-text-primary mb-2">Payment Screenshot</label>
+              <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors">
+                {screenshot ? (
+                  <div className="space-y-2">
+                    <p className="font-medium text-text-primary">{screenshot.name}</p>
+                    <button type="button" onClick={() => setScreenshot(null)} className="text-sm text-red-600 hover:underline">Remove</button>
+                  </div>
+                ) : (
+                  <>
+                    <HiOutlineCloudUpload className="text-3xl text-slate-400 mx-auto mb-2" />
+                    <p className="text-sm text-text-secondary mb-2">Upload screenshot of successful payment</p>
+                    <input 
+                      type="file" 
+                      id="screenshot" 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => setScreenshot(e.target.files[0])} 
+                    />
+                    <label htmlFor="screenshot" className="btn-secondary cursor-pointer mt-2 inline-block">
+                      Browse Image
+                    </label>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <button type="submit" className="btn-primary w-full py-3 text-base" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit Payment Details'}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
