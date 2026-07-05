@@ -1,7 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { HiOutlineHome, HiOutlineDocumentAdd, HiOutlineCollection, HiOutlineCreditCard, HiOutlineLogout } from 'react-icons/hi';
-import Logo from '../../assets/logo.svg';
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
