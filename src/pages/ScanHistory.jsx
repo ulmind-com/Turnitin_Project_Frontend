@@ -24,52 +24,59 @@ export default function ScanHistory() {
 
   if (loading) {
     return (
-      <div className="space-y-4 fade-in">
-        <div className="skeleton h-8 w-48 mb-6" />
-        {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
+      <div className="space-y-4 fade-in relative z-10">
+        <div className="skeleton h-10 w-64 mb-8 bg-accent-primary/20" />
+        {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-20 cyber-card" />)}
       </div>
     );
   }
 
   return (
-    <div className="fade-in">
-      <h1 className="text-2xl font-bold text-text-primary mb-2">Scan History</h1>
-      <p className="text-text-secondary mb-8">All your scanned documents and results</p>
+    <div className="fade-in relative z-10">
+      <div className="border-b border-accent-primary/20 pb-4 mb-8 relative">
+        <div className="absolute bottom-0 right-0 w-32 h-[1px] bg-accent-primary shadow-[0_0_10px_rgba(0,240,255,1)]" />
+        <h1 className="text-3xl font-display font-bold text-text-primary uppercase tracking-widest">
+          Data <span className="text-neon-cyan glitch-hover">Logs</span>
+        </h1>
+        <p className="text-text-muted font-mono text-xs mt-2 uppercase tracking-[0.2em]">Historical target acquisition records</p>
+      </div>
 
       {documents.length > 0 ? (
-        <div className="glass-card rounded-2xl overflow-hidden">
+        <div className="cyber-card bg-black/40 relative overflow-hidden">
           {/* Table Header */}
-          <div className="grid grid-cols-12 gap-4 p-4 px-6 border-b border-border text-xs text-text-muted uppercase tracking-wider font-medium">
-            <div className="col-span-4">Document</div>
-            <div className="col-span-2">Status</div>
+          <div className="grid grid-cols-12 gap-4 p-4 px-6 border-b border-accent-primary/30 text-[10px] text-accent-primary font-display font-bold uppercase tracking-[0.2em] bg-accent-primary/5">
+            <div className="col-span-4">Target Identity</div>
+            <div className="col-span-2">System Status</div>
             <div className="col-span-2 text-center">Plagiarism</div>
-            <div className="col-span-2 text-center">AI Score</div>
-            <div className="col-span-2 text-right">Date</div>
+            <div className="col-span-2 text-center">AI Pattern</div>
+            <div className="col-span-2 text-right">Timestamp</div>
           </div>
 
           {/* Rows */}
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-white/5">
             {documents.map((doc) => (
               <Link
                 key={doc.id}
                 to={`/report/${doc.id}`}
-                className="grid grid-cols-12 gap-4 p-4 px-6 hover:bg-bg-elevated/50 transition-colors items-center group"
+                className="grid grid-cols-12 gap-4 p-4 px-6 hover:bg-accent-primary/5 transition-colors items-center group relative"
               >
-                <div className="col-span-4 flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-bg-elevated flex items-center justify-center flex-shrink-0">
-                    <HiOutlineDocumentText className="text-text-secondary" />
+                <div className="absolute left-0 top-0 w-1 h-full bg-accent-primary opacity-0 group-hover:opacity-100 shadow-[0_0_10px_rgba(0,240,255,1)] transition-opacity" />
+                
+                <div className="col-span-4 flex items-center gap-4 min-w-0">
+                  <div className="w-8 h-8 bg-black border border-accent-primary/50 flex items-center justify-center flex-shrink-0 group-hover:border-accent-primary transition-colors" style={{ clipPath: 'polygon(25% 0%, 100% 0, 100% 75%, 75% 100%, 0 100%, 0% 25%)' }}>
+                    <HiOutlineDocumentText className="text-accent-primary/50 group-hover:text-neon-cyan transition-colors" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-text-primary truncate">{doc.original_file_name}</p>
-                    <p className="text-xs text-text-muted uppercase">{doc.file_type}</p>
+                    <p className="text-sm font-mono text-text-primary truncate group-hover:text-neon-cyan transition-colors">{doc.original_file_name}</p>
+                    <p className="text-[9px] text-text-muted uppercase tracking-[0.2em] font-display mt-0.5">{doc.file_type}</p>
                   </div>
                 </div>
 
                 <div className="col-span-2">
-                  <span className={`badge ${
-                    doc.scan_status === 'completed' ? 'badge-success' :
-                    doc.scan_status === 'processing' ? 'badge-warning' :
-                    doc.scan_status === 'failed' ? 'badge-danger' : 'badge-info'
+                  <span className={`cyber-badge ${
+                    doc.scan_status === 'completed' ? 'badge-green' :
+                    doc.scan_status === 'processing' ? 'badge-warning animate-pulse' :
+                    doc.scan_status === 'failed' ? 'badge-red' : 'badge-cyan'
                   }`}>
                     {doc.scan_status}
                   </span>
@@ -77,44 +84,48 @@ export default function ScanHistory() {
 
                 <div className="col-span-2 text-center">
                   {doc.scan_status === 'completed' ? (
-                    <span className={`text-sm font-mono font-bold ${
-                      doc.plagiarism_score > 50 ? 'text-accent-danger' :
-                      doc.plagiarism_score > 20 ? 'text-accent-warning' : 'text-accent-success'
+                    <span className={`text-sm font-mono font-bold tracking-widest ${
+                      doc.plagiarism_score > 50 ? 'text-neon-red' :
+                      doc.plagiarism_score > 20 ? 'text-accent-warning' : 'text-neon-green'
                     }`}>
                       {doc.plagiarism_score}%
                     </span>
                   ) : (
-                    <span className="text-sm text-text-muted">—</span>
+                    <span className="text-sm text-text-muted font-mono tracking-widest">—</span>
                   )}
                 </div>
 
                 <div className="col-span-2 text-center">
                   {doc.scan_status === 'completed' ? (
-                    <span className={`text-sm font-mono font-bold ${
-                      doc.ai_score > 50 ? 'text-accent-danger' :
-                      doc.ai_score > 20 ? 'text-accent-warning' : 'text-accent-success'
+                    <span className={`text-sm font-mono font-bold tracking-widest ${
+                      doc.ai_score > 50 ? 'text-neon-red' :
+                      doc.ai_score > 20 ? 'text-accent-warning' : 'text-neon-green'
                     }`}>
                       {doc.ai_score}%
                     </span>
                   ) : (
-                    <span className="text-sm text-text-muted">—</span>
+                    <span className="text-sm text-text-muted font-mono tracking-widest">—</span>
                   )}
                 </div>
 
-                <div className="col-span-2 text-right">
-                  <p className="text-xs text-text-muted">{new Date(doc.created_at).toLocaleDateString()}</p>
-                  <HiOutlineExternalLink className="text-accent-primary opacity-0 group-hover:opacity-100 transition-opacity ml-auto text-sm mt-1" />
+                <div className="col-span-2 flex flex-col items-end justify-center">
+                  <p className="text-[10px] font-mono text-text-muted tracking-widest">{new Date(doc.created_at).toISOString().split('T')[0]}</p>
+                  <div className="flex items-center gap-1 text-[9px] font-display text-accent-primary uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+                    ACCESS REPORT <HiOutlineExternalLink />
+                  </div>
                 </div>
               </Link>
             ))}
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-2xl p-12 text-center">
-          <HiOutlineDocumentText className="text-5xl text-text-muted mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-text-primary mb-2">No documents yet</h3>
-          <p className="text-sm text-text-secondary mb-4">Upload your first document to get started</p>
-          <Link to="/upload" className="btn-primary inline-block">Upload Document</Link>
+        <div className="cyber-card p-16 text-center bg-black/40">
+          <div className="w-20 h-20 bg-accent-primary/5 border border-accent-primary/20 flex items-center justify-center mx-auto mb-4" style={{ clipPath: 'polygon(25% 0%, 100% 0, 100% 75%, 75% 100%, 0 100%, 0% 25%)' }}>
+            <HiOutlineDocumentText className="text-4xl text-accent-primary/40" />
+          </div>
+          <h3 className="text-lg font-display font-bold text-accent-primary uppercase tracking-widest mb-2">No Records Found</h3>
+          <p className="text-[10px] font-mono text-text-muted uppercase tracking-[0.2em] mb-6">Database contains zero target acquisitions.</p>
+          <Link to="/upload" className="btn-cyber inline-block">INITIALIZE FIRST SCAN</Link>
         </div>
       )}
     </div>
