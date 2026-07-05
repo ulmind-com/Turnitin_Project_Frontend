@@ -116,10 +116,9 @@ export default function GradingSidebar({ doc, onSaveGrade }) {
             </div>
           )}
         </div>
-
-        {/* ── Rubric quick-picks ── */}
+          {/* ── Rubric quick-picks ── */}
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
             Quick Grade
           </label>
           <div className="flex flex-wrap gap-2">
@@ -132,10 +131,10 @@ export default function GradingSidebar({ doc, onSaveGrade }) {
                 key={label}
                 type="button"
                 onClick={() => setGrade(String(value))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-150 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-150 cursor-pointer ${
                   grade === String(value)
-                    ? 'bg-accent-primary text-white border-accent-primary shadow-sm'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-100'
+                    : 'bg-white text-slate-650 border-slate-200 hover:border-slate-400'
                 }`}
               >
                 {label}
@@ -146,7 +145,7 @@ export default function GradingSidebar({ doc, onSaveGrade }) {
 
         {/* ── Instructor Feedback ── */}
         <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
             Instructor Feedback
           </label>
           <textarea
@@ -154,9 +153,9 @@ export default function GradingSidebar({ doc, onSaveGrade }) {
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             placeholder="Write detailed, constructive feedback for the student here…"
-            className="block w-full p-4 border border-slate-200 rounded-xl text-slate-700 text-sm leading-relaxed focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
+            className="block w-full p-4 border border-slate-200/60 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 rounded-xl text-slate-700 text-sm leading-relaxed outline-none transition-all resize-none font-medium"
           />
-          <p className="text-[10px] text-slate-400 text-right">
+          <p className="text-[10px] text-slate-400 text-right font-medium">
             {feedback.length} characters
           </p>
         </div>
@@ -165,10 +164,10 @@ export default function GradingSidebar({ doc, onSaveGrade }) {
         <button
           type="submit"
           disabled={saving}
-          className={`w-full flex items-center justify-center gap-2 font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-md text-sm ${
+          className={`w-full flex items-center justify-center gap-2 font-bold py-3 px-4 rounded-xl transition-all duration-200 shadow-md text-sm cursor-pointer ${
             saved
-              ? 'bg-emerald-600 text-white shadow-emerald-200'
-              : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white shadow-blue-200'
+              ? 'bg-emerald-600 text-white shadow-emerald-250'
+              : 'bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white shadow-blue-100/50'
           }`}
         >
           {saving ? (

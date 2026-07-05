@@ -93,8 +93,8 @@ export default function MatchSidebar({ doc, onSourceClick, activeChunkIndex }) {
         onClick={() => onSourceClick(src.chunk_index)}
         className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer select-none ${
           isActive
-            ? 'bg-red-50 border-red-300 ring-2 ring-red-200 shadow-md shadow-red-100 scale-[1.01]'
-            : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
+            ? 'bg-red-50/70 border-red-350 ring-2 ring-red-100 shadow-md shadow-red-100/50 scale-[1.01]'
+            : 'bg-white border-slate-200/60 hover:border-slate-300 hover:shadow-sm'
         }`}
       >
         <div className="flex items-start justify-between gap-2 mb-2">
@@ -102,12 +102,12 @@ export default function MatchSidebar({ doc, onSourceClick, activeChunkIndex }) {
             {src.title || (student ? 'Student Submission' : src.url)}
           </div>
           <span
-            className={`text-xs font-extrabold px-2 py-0.5 rounded-full flex-shrink-0 ${
+            className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 border ${
               src.similarity_score > 50
-                ? 'bg-red-100 text-red-700'
+                ? 'bg-red-50 text-red-650 border-red-100/50'
                 : src.similarity_score > 20
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-slate-100 text-slate-600'
+                ? 'bg-amber-50 text-amber-650 border-amber-100/50'
+                : 'bg-slate-50 text-slate-600 border-slate-100'
             }`}
           >
             {src.similarity_score}%

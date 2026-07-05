@@ -65,7 +65,7 @@ export default function FeedbackStudio() {
         <div className="flex items-center gap-3 min-w-0">
           <Link
             to="/history"
-            className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors flex-shrink-0"
+            className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors flex-shrink-0 cursor-pointer"
             title="Back to History"
           >
             <HiOutlineChevronLeft className="text-lg" />
@@ -73,15 +73,15 @@ export default function FeedbackStudio() {
 
           <div className="w-px h-5 bg-slate-200 flex-shrink-0" />
 
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 text-accent-primary">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 text-blue-600">
             <HiOutlineDocumentText className="text-base" />
           </div>
 
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-800 truncate max-w-[260px]" title={doc?.original_file_name}>
+            <p className="text-sm font-extrabold text-slate-900 truncate max-w-[260px]" title={doc?.original_file_name}>
               {doc?.original_file_name ?? 'Untitled Document'}
             </p>
-            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
               Feedback Studio
             </p>
           </div>
@@ -89,12 +89,12 @@ export default function FeedbackStudio() {
 
         {/* Center: user/student metadata chips */}
         <div className="hidden md:flex items-center gap-2 flex-1 justify-center">
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs text-slate-600 font-medium">
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-xs text-slate-600 font-medium">
             <HiOutlineUser className="text-slate-400" />
             <span>User: <span className="font-bold text-slate-700">{doc?.user_id?.substring(0, 8) ?? '—'}</span></span>
           </div>
           {doc?.created_at && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs text-slate-600 font-medium">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full text-xs text-slate-600 font-medium">
               Submitted:{' '}
               <span className="font-bold text-slate-700 ml-1">
                 {new Date(doc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -102,13 +102,13 @@ export default function FeedbackStudio() {
             </div>
           )}
           {doc?.grade !== null && doc?.grade !== undefined && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-violet-100 rounded-full text-xs font-bold text-violet-700">
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-violet-55 border border-violet-100/50 rounded-full text-xs font-bold text-violet-750">
               Grade: {doc.grade}/100
             </div>
           )}
           {/* Similarity pill */}
-          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-            plagScore > 50 ? 'bg-red-100 text-red-700' : plagScore > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+            plagScore > 50 ? 'bg-red-50 text-red-650 border-red-100/50' : plagScore > 0 ? 'bg-amber-50 text-amber-650 border-amber-100/50' : 'bg-emerald-50 text-emerald-700 border-emerald-100/50'
           }`}>
             <HiOutlineShieldCheck />
             {plagScore}% Similarity
@@ -117,13 +117,13 @@ export default function FeedbackStudio() {
 
         {/* Right: Tab switcher */}
         <div className="flex-shrink-0">
-          <div className="bg-slate-100 p-1 rounded-xl flex gap-1 border border-slate-200">
+          <div className="bg-slate-50 p-1 rounded-xl flex gap-1 border border-slate-200/60 shadow-inner">
             <button
               onClick={() => setActiveTab('similarity')}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
                 activeTab === 'similarity'
-                  ? 'bg-red-600 text-white shadow-sm shadow-red-200'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-red-600 text-white shadow-sm shadow-red-100'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <HiOutlineShieldCheck />
@@ -131,10 +131,10 @@ export default function FeedbackStudio() {
             </button>
             <button
               onClick={() => setActiveTab('grading')}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 ${
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer ${
                 activeTab === 'grading'
-                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-100'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               <HiOutlinePencilAlt />

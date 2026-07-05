@@ -53,13 +53,13 @@ const SimilarityPill = ({ score, ready }) => {
 };
 
 const StatCard = ({ icon: Icon, iconBg, iconColor, label, value }) => (
-  <div className="clean-card p-6 flex items-start gap-4 hover:shadow-md transition-shadow">
-    <div className={`w-12 h-12 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
+  <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-6 flex items-center gap-5 h-28 hover:shadow-md transition-all duration-200 shadow-sm">
+    <div className={`w-14 h-14 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0 shadow-sm`}>
       <Icon className={`text-2xl ${iconColor}`} />
     </div>
     <div>
-      <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-3xl font-bold text-text-primary">{value}</p>
+      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-3xl font-extrabold text-slate-900 tracking-tight">{value}</p>
     </div>
   </div>
 );
@@ -154,20 +154,20 @@ export default function Dashboard() {
   return (
     <div className="fade-in max-w-7xl mx-auto space-y-8">
       {/* ── Welcome banner ── */}
-      <div className="bg-white rounded-2xl p-8 border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="bg-white rounded-2xl p-8 ring-1 ring-slate-200/60 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-text-primary mb-1">
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">
             Welcome back, {user?.name?.split(' ')[0] ?? 'User'}
           </h1>
-          <p className="text-text-secondary text-base">
+          <p className="text-slate-500 text-base font-medium">
             You have{' '}
-            <span className="font-bold text-accent-primary">{user?.credits ?? 0}</span>{' '}
+            <span className="font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100/60">{user?.credits ?? 0}</span>{' '}
             credit{user?.credits !== 1 ? 's' : ''} remaining for scanning.
           </p>
         </div>
         <Link
           to="/upload"
-          className="btn-primary py-3 px-6 text-sm flex items-center gap-2 self-start md:self-auto"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg px-5 py-3 transition-all duration-200 shadow-sm active:scale-95 flex items-center gap-2 self-start md:self-auto cursor-pointer"
         >
           <HiOutlinePlus className="text-base" />
           New Scan
@@ -178,21 +178,21 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           icon={HiOutlineDocumentText}
-          iconBg="bg-blue-50"
-          iconColor="text-accent-primary"
+          iconBg="bg-blue-50 border border-blue-100/50 text-blue-600"
+          iconColor="text-blue-600"
           label="Total Scans"
           value={stats?.total_scans ?? 0}
         />
         <StatCard
           icon={HiOutlineShieldCheck}
-          iconBg="bg-emerald-50"
+          iconBg="bg-emerald-50 border border-emerald-100/50 text-emerald-600"
           iconColor="text-emerald-600"
           label="Avg Plagiarism"
           value={stats?.average_plagiarism > 0 ? `${stats.average_plagiarism}%` : '0%'}
         />
         <StatCard
           icon={HiOutlineClock}
-          iconBg="bg-violet-50"
+          iconBg="bg-violet-50 border border-violet-100/50 text-violet-600"
           iconColor="text-violet-600"
           label="Avg AI Score"
           value={stats?.average_ai_score > 0 ? `${stats.average_ai_score}%` : '0%'}
@@ -200,12 +200,12 @@ export default function Dashboard() {
       </div>
 
       {/* ── Documents Table ── */}
-      <div className="clean-card overflow-hidden">
+      <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 shadow-sm overflow-hidden">
         {/* Table Header */}
-        <div className="px-6 py-4 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-text-primary">Documents</h2>
-            <p className="text-sm text-text-secondary mt-0.5">
+            <h2 className="text-xl font-bold text-slate-900">Documents</h2>
+            <p className="text-sm text-slate-500 mt-0.5">
               {filtered.length} submission{filtered.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -216,7 +216,7 @@ export default function Dashboard() {
               placeholder="Search by filename…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-accent-primary/20 focus:border-accent-primary outline-none transition-all w-64"
+              className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all w-64"
             />
           </div>
         </div>
@@ -268,7 +268,7 @@ export default function Dashboard() {
                       </td>
 
                       {/* Upload Date */}
-                      <td className="px-4 py-4 text-sm text-text-secondary whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm text-slate-500 whitespace-nowrap">
                         {new Date(doc.created_at).toLocaleDateString('en-US', {
                           month: 'short', day: 'numeric', year: 'numeric',
                         })}
@@ -290,14 +290,14 @@ export default function Dashboard() {
                           <Link
                             to={`/report/${doc.id}`}
                             title="View Report"
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-accent-primary hover:border-accent-primary hover:bg-blue-50 transition-all duration-150"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 cursor-pointer"
                           >
                             <HiOutlineEye className="text-sm" />
                           </Link>
                           <Link
                             to={`/feedback-studio/${doc.id}`}
                             title="Feedback Studio"
-                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-violet-600 hover:border-violet-400 hover:bg-violet-50 transition-all duration-150"
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:text-violet-600 hover:border-violet-500 hover:bg-violet-50 transition-all duration-200 cursor-pointer"
                           >
                             <HiOutlinePencilAlt className="text-sm" />
                           </Link>
@@ -311,19 +311,19 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
               <HiOutlineDocumentText className="text-3xl text-slate-400" />
             </div>
-            <p className="font-semibold text-text-primary mb-1">
+            <p className="font-semibold text-slate-800 mb-1">
               {query ? 'No matching documents' : 'No documents yet'}
             </p>
-            <p className="text-sm text-text-secondary mb-6">
+            <p className="text-sm text-slate-500 mb-6">
               {query
                 ? 'Try a different search term'
                 : 'Upload your first document to begin scanning'}
             </p>
             {!query && (
-              <Link to="/upload" className="btn-primary">
+              <Link to="/upload" className="bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg px-5 py-2.5 transition-all duration-200 shadow-sm active:scale-95 cursor-pointer">
                 Start a scan
               </Link>
             )}

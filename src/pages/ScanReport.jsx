@@ -117,11 +117,11 @@ const buildHighlightedHtml = (doc) => {
 const ScoreGauge = ({ score, color, label, loading: busy, failed, onRun, running }) => {
   const stroke = color === 'red' ? '#ef4444' : color === 'amber' ? '#f59e0b' : '#10b981';
   return (
-    <div className="clean-card p-6 text-center">
-      <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-5">{label}</h3>
+    <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-6 text-center shadow-sm">
+      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-5">{label}</h3>
       {busy ? (
         <div className="py-10 animate-pulse text-slate-400">
-          <HiOutlineRefresh className="text-4xl mx-auto mb-2 animate-spin text-accent-primary" />
+          <HiOutlineRefresh className="text-4xl mx-auto mb-2 animate-spin text-blue-600" />
           <span className="text-sm font-medium">Analysing…</span>
         </div>
       ) : failed ? (
@@ -168,17 +168,17 @@ const IntegrityCard = ({ flags }) => {
   if (!flags) return null;
   if (flags.length === 0) {
     return (
-      <div className="clean-card p-5">
-        <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">
+      <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-5 shadow-sm">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
           Integrity Overview
         </h3>
-        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
+        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-100/50 rounded-xl text-emerald-800">
           <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
             <HiOutlineCheckCircle className="text-xl text-emerald-600" />
           </div>
           <div>
             <p className="text-sm font-bold">0 Flags Detected</p>
-            <p className="text-xs text-emerald-600 mt-0.5">No evasion tactics detected.</p>
+            <p className="text-xs text-emerald-600 mt-0.5 font-medium">No evasion tactics detected.</p>
           </div>
         </div>
       </div>
@@ -186,16 +186,16 @@ const IntegrityCard = ({ flags }) => {
   }
 
   return (
-    <div className="clean-card p-5 border-red-200">
-      <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">
+    <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-5 border border-red-150 shadow-sm">
+      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
         Integrity Overview
       </h3>
       {/* Pulsating warning banner */}
-      <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-300 rounded-xl text-red-800 mb-4 animate-pulse ring-2 ring-red-200">
+      <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 mb-4 animate-pulse ring-2 ring-red-100/50">
         <HiOutlineShieldExclamation className="text-2xl flex-shrink-0 text-red-600" />
         <div>
           <p className="text-sm font-bold">{flags.length} Integrity Warning{flags.length > 1 ? 's' : ''}</p>
-          <p className="text-xs text-red-600 mt-0.5">Possible scan-evasion tactics detected.</p>
+          <p className="text-xs text-red-600 mt-0.5 font-medium">Possible scan-evasion tactics detected.</p>
         </div>
       </div>
       <div className="space-y-2">
@@ -328,11 +328,11 @@ export default function ScanReport() {
   if (aiStatus === 'failed' && plagStatus === 'failed') {
     return (
       <div className="fade-in max-w-4xl mx-auto py-10">
-        <div className="clean-card p-14 text-center border-red-200 bg-red-50">
+        <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-14 text-center border border-red-150 bg-red-50/20 shadow-sm">
           <HiOutlineExclamationCircle className="text-5xl text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-red-700 mb-2">Analysis Failed</h2>
-          <p className="text-red-600 text-sm mb-6">Both AI detection and plagiarism scans encountered errors.</p>
-          <Link to="/upload" className="btn-primary bg-red-600 hover:bg-red-700">Try Again</Link>
+          <h2 className="text-xl font-bold text-red-800 mb-2">Analysis Failed</h2>
+          <p className="text-red-600 text-sm mb-6 font-medium">Both AI detection and plagiarism scans encountered errors.</p>
+          <Link to="/upload" className="bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg px-5 py-2.5 transition-all shadow-sm active:scale-95 cursor-pointer">Try Again</Link>
         </div>
       </div>
     );
@@ -345,16 +345,16 @@ export default function ScanReport() {
         <div className="flex items-center gap-4">
           <Link
             to="/history"
-            className="w-10 h-10 bg-white border border-border rounded-xl flex items-center justify-center text-text-secondary hover:bg-slate-50 transition-colors shadow-sm"
+            className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
           >
             <HiOutlineChevronLeft className="text-xl" />
           </Link>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-text-primary flex items-center gap-2 truncate">
-              <HiOutlineDocumentText className="text-text-muted flex-shrink-0" />
+            <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2 truncate">
+              <HiOutlineDocumentText className="text-slate-400 flex-shrink-0" />
               <span className="truncate">{doc?.original_file_name}</span>
             </h1>
-            <p className="text-sm text-text-secondary mt-0.5">
+            <p className="text-sm text-slate-500 mt-0.5 font-medium">
               Uploaded {new Date(doc?.created_at).toLocaleString()}
             </p>
           </div>
@@ -362,9 +362,9 @@ export default function ScanReport() {
         <button
           onClick={downloadReport}
           disabled={downloading || !reportReady}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all ${
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all cursor-pointer ${
             reportReady
-              ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer shadow-blue-200'
+              ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100/50'
               : 'bg-slate-100 text-slate-400 cursor-not-allowed'
           }`}
         >
@@ -380,30 +380,30 @@ export default function ScanReport() {
         {/* ── Left column ── */}
         <div className="md:col-span-2 space-y-6">
           {/* Analysis Summaries */}
-          <div className="clean-card p-6">
-            <h2 className="text-base font-bold text-text-primary mb-5">Analysis Summaries</h2>
+          <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-6 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 mb-5">Analysis Summaries</h2>
             <div className="space-y-5">
               {/* Plagiarism */}
               <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Plagiarism Check</h4>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Plagiarism Check</h4>
                 {plagOk ? (
-                  <p className="text-text-secondary text-sm leading-relaxed">{doc?.plagiarism_result?.summary}</p>
+                  <p className="text-slate-650 text-sm leading-relaxed font-medium">{doc?.plagiarism_result?.summary}</p>
                 ) : plagStatus === 'failed' ? (
-                  <p className="text-red-600 text-sm flex items-center gap-1.5">
+                  <p className="text-red-600 text-sm flex items-center gap-1.5 font-medium">
                     <HiOutlineExclamationCircle /> Plagiarism scan failed.
                   </p>
                 ) : isActive(plagStatus) ? (
-                  <p className="text-sm text-text-muted flex items-center gap-2 animate-pulse">
+                  <p className="text-sm text-slate-450 flex items-center gap-2 animate-pulse font-medium">
                     <HiOutlineRefresh className="animate-spin text-red-500" />
                     Web search &amp; plagiarism analysis in progress…
                   </p>
                 ) : (
                   <div>
-                    <p className="text-sm text-slate-500 mb-3">Plagiarism analysis has not been run.</p>
+                    <p className="text-sm text-slate-500 mb-3 font-medium">Plagiarism analysis has not been run.</p>
                     <button
                       onClick={startPlagiarismScan}
                       disabled={trigPlag}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-50 transition-all shadow cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-750 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
                     >
                       {trigPlag
                         ? <><div className="w-3 h-3 border-2 border-red-300 border-t-white rounded-full animate-spin" /> Queuing…</>
@@ -414,25 +414,25 @@ export default function ScanReport() {
               </div>
 
               <div className="border-t border-slate-100 pt-4">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">AI Detection</h4>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">AI Detection</h4>
                 {aiOk ? (
-                  <p className="text-text-secondary text-sm leading-relaxed">{doc?.ai_result?.summary}</p>
+                  <p className="text-slate-650 text-sm leading-relaxed font-medium">{doc?.ai_result?.summary}</p>
                 ) : aiStatus === 'failed' ? (
-                  <p className="text-red-600 text-sm flex items-center gap-1.5">
+                  <p className="text-red-600 text-sm flex items-center gap-1.5 font-medium">
                     <HiOutlineExclamationCircle /> AI scan failed.
                   </p>
                 ) : isActive(aiStatus) ? (
-                  <p className="text-sm text-text-muted flex items-center gap-2 animate-pulse">
+                  <p className="text-sm text-slate-450 flex items-center gap-2 animate-pulse font-medium">
                     <HiOutlineRefresh className="animate-spin text-blue-500" />
                     Analysing sentence structures for AI signatures…
                   </p>
                 ) : (
                   <div>
-                    <p className="text-sm text-slate-500 mb-3">AI detection has not been run.</p>
+                    <p className="text-sm text-slate-500 mb-3 font-medium">AI detection has not been run.</p>
                     <button
                       onClick={startAiScan}
                       disabled={trigAi}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow-sm cursor-pointer"
                     >
                       {trigAi
                         ? <><div className="w-3 h-3 border-2 border-blue-300 border-t-white rounded-full animate-spin" /> Queuing…</>
@@ -445,22 +445,22 @@ export default function ScanReport() {
           </div>
 
           {/* Highlighted Text */}
-          <div className="clean-card p-6">
+          <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-text-primary">Submission Text</h2>
-              <div className="flex items-center gap-4 text-xs font-semibold text-text-secondary">
+              <h2 className="text-base font-bold text-slate-900">Submission Text</h2>
+              <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm bg-red-100 border border-red-300 inline-block" />
+                  <span className="w-3 h-3 rounded-sm bg-red-100 border border-red-200 inline-block" />
                   Plagiarism
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300 inline-block" />
+                  <span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-200 inline-block" />
                   AI Writing
                 </span>
               </div>
             </div>
             <div
-              className="bg-slate-50 border border-border rounded-xl p-6 max-h-[600px] overflow-y-auto font-serif text-base text-text-primary leading-loose selection:bg-yellow-200 custom-scrollbar"
+              className="bg-slate-50/50 border border-slate-200/60 rounded-xl p-6 max-h-[600px] overflow-y-auto font-serif text-base text-slate-800 leading-loose selection:bg-yellow-100 custom-scrollbar"
               dangerouslySetInnerHTML={{ __html: highlightedHtml }}
             />
           </div>
@@ -495,8 +495,8 @@ export default function ScanReport() {
 
           {/* Document Metadata */}
           {doc?.metadata && (
-            <div className="clean-card p-5">
-              <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 p-5 shadow-sm">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
                 Document Metadata
               </h3>
               <div className="grid grid-cols-2 gap-3 text-xs">
@@ -506,9 +506,9 @@ export default function ScanReport() {
                   { label: 'Characters', value: (doc.metadata.character_count ?? 0).toLocaleString() },
                   { label: 'File Size',  value: doc.metadata.file_size ? `${(doc.metadata.file_size / 1024).toFixed(1)} KB` : 'N/A' },
                 ].map(({ label, value }) => (
-                  <div key={label} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1">{label}</p>
-                    <p className="text-base font-bold text-text-primary">{value}</p>
+                  <div key={label} className="bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-base font-extrabold text-slate-800">{value}</p>
                   </div>
                 ))}
               </div>
@@ -517,25 +517,25 @@ export default function ScanReport() {
 
           {/* Matched Sources */}
           {(doc?.plagiarism_result?.matched_sources?.length ?? 0) > 0 && (
-            <div className="clean-card overflow-hidden">
-              <div className="px-5 py-3 border-b border-border bg-slate-50">
-                <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">Matched Sources</h3>
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200/60 overflow-hidden shadow-sm">
+              <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Matched Sources</h3>
               </div>
-              <div className="divide-y divide-border">
+              <div className="divide-y divide-slate-100">
                 {doc.plagiarism_result.matched_sources.map((src, i) => (
-                  <div key={i} className="px-5 py-3 hover:bg-slate-50 transition-colors">
+                  <div key={i} className="px-5 py-3 hover:bg-slate-50/30 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <a
                         href={src.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs font-medium text-accent-primary hover:underline break-all flex items-start gap-1"
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline break-all flex items-start gap-1"
                       >
-                        <HiOutlineExternalLink className="flex-shrink-0 mt-0.5" />
+                        <HiOutlineExternalLink className="flex-shrink-0 mt-0.5 text-blue-500" />
                         {src.url}
                       </a>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                        src.similarity_score > 50 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                      <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-bold border ${
+                        src.similarity_score > 50 ? 'bg-red-50 text-red-650 border-red-100/50' : 'bg-amber-50 text-amber-650 border-amber-100/50'
                       }`}>
                         {src.similarity_score}%
                       </span>

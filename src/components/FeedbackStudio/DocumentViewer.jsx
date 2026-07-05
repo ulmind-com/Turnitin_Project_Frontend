@@ -146,19 +146,19 @@ export default function DocumentViewer({ doc, onMarkClick, highlightedIndex }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+    <div className="flex flex-col h-full bg-white border border-slate-200/60 rounded-2xl overflow-hidden shadow-sm">
       {/* Panel header */}
-      <div className="bg-slate-50 border-b border-slate-200 px-6 py-3 flex items-center justify-between flex-shrink-0">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+      <div className="bg-slate-50/50 border-b border-slate-100 px-6 py-4 flex items-center justify-between flex-shrink-0">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
           Student Submission Transcript
         </span>
-        <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">
+        <div className="flex items-center gap-4 text-[11px] text-slate-400 font-bold">
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-red-100 border border-red-300 inline-block" />
+            <span className="w-3 h-3 rounded-sm bg-red-100 border border-red-200 inline-block" />
             Plagiarism (click to inspect)
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300 inline-block" />
+            <span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-200 inline-block" />
             AI Writing
           </span>
         </div>
@@ -168,7 +168,7 @@ export default function DocumentViewer({ doc, onMarkClick, highlightedIndex }) {
       <div
         ref={containerRef}
         onClick={handleClick}
-        className="flex-1 overflow-y-auto px-12 py-10 font-serif text-[15px] text-slate-800 leading-[1.9] whitespace-pre-wrap select-text bg-white custom-scrollbar"
+        className="flex-1 overflow-y-auto px-12 py-10 font-serif text-[15.5px] text-slate-800 leading-[2.1] whitespace-pre-wrap select-text bg-white custom-scrollbar"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
