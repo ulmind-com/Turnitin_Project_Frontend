@@ -46,7 +46,11 @@ export default function PaymentProof() {
     formData.append('screenshot', screenshot);
 
     try {
-      await api.post('/api/payments/submit', formData);
+      await api.post('/api/payments/submit', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       toast.success('Payment submitted successfully! Waiting for admin approval.');
       navigate('/');
     } catch (err) {

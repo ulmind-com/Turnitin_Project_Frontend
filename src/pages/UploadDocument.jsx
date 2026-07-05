@@ -62,7 +62,11 @@ export default function UploadDocument() {
     formData.append('file', file);
 
     try {
-      const res = await api.post('/api/documents/upload', formData);
+      const res = await api.post('/api/documents/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       toast.success('Document uploaded successfully!');
       
       // Update local credits immediately
