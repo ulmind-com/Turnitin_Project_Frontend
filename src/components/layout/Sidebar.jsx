@@ -2,21 +2,21 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { HiOutlineHome, HiOutlineDocumentAdd, HiOutlineCollection, HiOutlineCreditCard, HiOutlineLogout } from 'react-icons/hi';
 
-export default function Sidebar() {
+export default function Sidebar({ className }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
   const links = [
-    { to: '/', icon: HiOutlineHome, label: 'Dashboard' },
-    { to: '/scan', icon: HiOutlineDocumentAdd, label: 'New Scan' },
+    { to: '/dashboard', icon: HiOutlineHome, label: 'Dashboard' },
+    { to: '/upload', icon: HiOutlineDocumentAdd, label: 'New Scan' },
     { to: '/history', icon: HiOutlineCollection, label: 'History' },
     { to: '/plans', icon: HiOutlineCreditCard, label: 'Plans & Pricing' },
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-bg-secondary border-r border-border flex flex-col z-50">
+    <aside className={`h-screen bg-bg-secondary border-r border-border flex flex-col sticky top-0 ${className || 'w-64 flex-shrink-0'}`}>
       <div className="p-6 border-b border-border flex items-center gap-3">
         <div className="w-8 h-8 bg-accent-primary rounded flex items-center justify-center text-white font-bold text-xl">
           T
@@ -27,7 +27,7 @@ export default function Sidebar() {
       <nav className="flex-1 p-4 space-y-2">
         {links.map(({ to, icon: Icon, label }) => (
           <NavLink key={to} to={to} end={to === '/'}
-            className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isActive ? 'bg-accent-primary/10 text-accent-primary' : 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary'}`}>
+            className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${isActive ? 'bg-accent-primary/10 text-accent-primary font-semibold' : 'text-text-secondary hover:bg-bg-elevated hover:text-text-primary'}`}>
             <Icon className="text-xl" /> {label}
           </NavLink>
         ))}

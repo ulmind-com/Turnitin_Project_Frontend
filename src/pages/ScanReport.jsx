@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import api from '../services/api';
+import DOMPurify from 'dompurify';
+import { documentApi } from '../services/api';
 import toast from 'react-hot-toast';
 import {
   HiOutlineChevronLeft,
@@ -8,360 +9,434 @@ import {
   HiOutlineExternalLink,
   HiOutlineDownload,
   HiOutlineRefresh,
-  HiOutlineExclamationCircle
+  HiOutlineExclamationCircle,
+  HiOutlineShieldExclamation,
+  HiOutlineCheckCircle,
 } from 'react-icons/hi';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const POLL_INTERVAL = 4000;
+
+const isActive = (status) => status === 'queued' || status === 'processing';
+
+// Builds highlighted HTML from raw text + scan results.
+// All characters are HTML-escaped before insertion, so DOMPurify only needs
+// to allow our known tags — no injection surface from user text.
+const buildHighlightedHtml = (doc) => {
+  if (!doc) return '';
+  const text = doc.extracted_text ?? '';
+  const n = text.length;
+  const tags = new Uint8Array(n); // 0=plain, 1=AI, 2=plagiarism
+
+  // Mark plagiarism spans
+  const chunks = doc.plagiarism_result?.chunks ?? [];
+  for (const chunk of chunks) {
+    if (chunk.plagiarism_score >= 20) {
+      let pos = 0;
+      while (true) {
+        const idx = text.indexOf(chunk.text, pos);
+        if (idx === -1) break;
+        tags.fill(2, idx, idx + chunk.text.length);
+        pos = idx + 1;
+      }
+    }
+  }
+
+  // Mark AI sentences (only if AI score is meaningful)
+  if ((doc.ai_result?.ai_score ?? 0) > 15) {
+    const aiScore = doc.ai_result.ai_score;
+    const AI_KEYWORDS = [
+      'delve', 'tapestry', 'moreover', 'furthermore', 'testament', 'notably',
+      'in conclusion', 'it is important to note', 'consequently', 'pivotal',
+      'beacon', 'comprehensive', 'demystify', 'multifaceted', 'paramount',
+    ];
+
+    const sentenceRegex = /[^.!?]+[.!?]+/g;
+    const sentences = [];
+    let m;
+    let last = 0;
+    while ((m = sentenceRegex.exec(text)) !== null) {
+      sentences.push({ start: last, end: sentenceRegex.lastIndex, score: 0 });
+      last = sentenceRegex.lastIndex;
+    }
+    if (last < n) sentences.push({ start: last, end: n, score: 0 });
+
+    for (const s of sentences) {
+      const slice = text.slice(s.start, s.end).toLowerCase();
+      for (const kw of AI_KEYWORDS) if (slice.includes(kw)) s.score += 10;
+    }
+
+    const count = Math.max(1, Math.floor(sentences.length * (aiScore / 100)));
+    const top = [...sentences].sort((a, b) => b.score - a.score).slice(0, count);
+    for (const { start, end } of top) {
+      for (let i = start; i < end; i++) {
+        if (tags[i] === 0) tags[i] = 1;
+      }
+    }
+  }
+
+  // Build HTML string
+  const escape = (c) => {
+    if (c === '&') return '&amp;';
+    if (c === '<') return '&lt;';
+    if (c === '>') return '&gt;';
+    if (c === '\n') return '<br/>';
+    return c;
+  };
+
+  const parts = [];
+  let cur = 0;
+  for (let i = 0; i < n; i++) {
+    const t = tags[i];
+    if (t !== cur) {
+      if (cur !== 0) parts.push('</mark>');
+      if (t === 1)
+        parts.push('<mark class="bg-blue-100/80 text-blue-900 border-b border-blue-300 px-0.5 rounded-sm">');
+      else if (t === 2)
+        parts.push('<mark class="bg-red-100/80 text-red-900 border-b border-red-300 px-0.5 rounded-sm">');
+      cur = t;
+    }
+    parts.push(escape(text[i]));
+  }
+  if (cur !== 0) parts.push('</mark>');
+
+  const raw = parts.join('');
+  return DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: ['mark', 'br'],
+    ALLOWED_ATTR: ['class'],
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+const ScoreGauge = ({ score, color, label, loading: busy, failed, onRun, running }) => {
+  const stroke = color === 'red' ? '#ef4444' : color === 'amber' ? '#f59e0b' : '#10b981';
+  return (
+    <div className="clean-card p-6 text-center">
+      <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-5">{label}</h3>
+      {busy ? (
+        <div className="py-10 animate-pulse text-slate-400">
+          <HiOutlineRefresh className="text-4xl mx-auto mb-2 animate-spin text-accent-primary" />
+          <span className="text-sm font-medium">Analysing…</span>
+        </div>
+      ) : failed ? (
+        <div className="py-10 text-red-500">
+          <HiOutlineExclamationCircle className="text-4xl mx-auto mb-2" />
+          <span className="text-sm font-medium">Scan Failed</span>
+        </div>
+      ) : score !== null ? (
+        <div className="relative w-36 h-36 mx-auto mb-2">
+          <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+            <circle
+              cx="18" cy="18" r="15.9"
+              fill="none"
+              stroke={stroke}
+              strokeWidth="3"
+              strokeDasharray={`${score} 100`}
+              strokeLinecap="round"
+              style={{ transition: 'stroke-dasharray 0.6s ease' }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-4xl font-extrabold" style={{ color: stroke }}>{score}%</span>
+          </div>
+        </div>
+      ) : (
+        <div className="py-8 text-slate-400">
+          <p className="text-sm font-semibold mb-3">Not Started</p>
+          <button
+            onClick={onRun}
+            disabled={running}
+            className="px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer disabled:opacity-50"
+            style={{ borderColor: stroke, color: stroke }}
+          >
+            {running ? 'Queuing…' : 'Run Scan'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const IntegrityCard = ({ flags }) => {
+  if (!flags) return null;
+  if (flags.length === 0) {
+    return (
+      <div className="clean-card p-5">
+        <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">
+          Integrity Overview
+        </h3>
+        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
+          <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <HiOutlineCheckCircle className="text-xl text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold">0 Flags Detected</p>
+            <p className="text-xs text-emerald-600 mt-0.5">No evasion tactics detected.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="clean-card p-5 border-red-200">
+      <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">
+        Integrity Overview
+      </h3>
+      {/* Pulsating warning banner */}
+      <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-300 rounded-xl text-red-800 mb-4 animate-pulse ring-2 ring-red-200">
+        <HiOutlineShieldExclamation className="text-2xl flex-shrink-0 text-red-600" />
+        <div>
+          <p className="text-sm font-bold">{flags.length} Integrity Warning{flags.length > 1 ? 's' : ''}</p>
+          <p className="text-xs text-red-600 mt-0.5">Possible scan-evasion tactics detected.</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {flags.map((flag, i) => (
+          <div key={i} className="p-3 bg-red-50/60 border border-red-100 rounded-lg">
+            <p className="text-[10px] font-bold text-red-700 uppercase tracking-wider">{flag.type}</p>
+            <p className="text-sm text-text-primary mt-1 leading-relaxed">{flag.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 export default function ScanReport() {
   const { id } = useParams();
-  const [doc, setDoc] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [doc, setDoc]               = useState(null);
+  const [loading, setLoading]       = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [trigAi, setTrigAi]         = useState(false);
+  const [trigPlag, setTrigPlag]     = useState(false);
 
-  const [triggeringAi, setTriggeringAi] = useState(false);
-  const [triggeringPlag, setTriggeringPlag] = useState(false);
-
+  // ── Smart polling — starts on initial fetch, stops when both scans settle ──
   useEffect(() => {
-    let intervalId;
-    
+    let intervalId = null;
+
     const fetchDoc = async () => {
       try {
-        const res = await api.get(`/api/documents/${id}`);
-        setDoc(res.data);
+        const res = await documentApi.getById(id);
+        const data = res.data;
+        setDoc(data);
         setLoading(false);
-      } catch (error) {
-        console.error('Failed to fetch document', error);
+
+        const stillActive =
+          isActive(data.ai_scan_status) || isActive(data.plagiarism_scan_status);
+
+        if (!stillActive && intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        } else if (stillActive && !intervalId) {
+          intervalId = setInterval(fetchDoc, POLL_INTERVAL);
+        }
+      } catch (err) {
+        console.error('Failed to fetch document', err);
         setLoading(false);
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
       }
     };
 
     fetchDoc();
 
-    const isAiActive = doc?.ai_scan_status === 'queued' || doc?.ai_scan_status === 'processing';
-    const isPlagActive = doc?.plagiarism_scan_status === 'queued' || doc?.plagiarism_scan_status === 'processing';
+    return () => { if (intervalId) clearInterval(intervalId); };
+  }, [id]);
 
-    if (isAiActive || isPlagActive) {
-      intervalId = setInterval(fetchDoc, 4000);
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [id, doc?.ai_scan_status, doc?.plagiarism_scan_status]);
-
+  // ── Manual scan triggers ──
   const startAiScan = async () => {
-    setTriggeringAi(true);
+    setTrigAi(true);
     try {
-      await api.post(`/api/documents/${id}/analyze/ai`);
-      toast.success('AI Detection scan started!');
-      setDoc(prev => prev ? { ...prev, ai_scan_status: 'queued' } : null);
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to start AI scan');
+      await documentApi.startAiScan(id);
+      toast.success('AI Detection scan queued!');
+      setDoc((prev) => prev ? { ...prev, ai_scan_status: 'queued' } : null);
+    } catch {
+      toast.error('Failed to start AI scan.');
     } finally {
-      setTriggeringAi(false);
+      setTrigAi(false);
     }
   };
 
   const startPlagiarismScan = async () => {
-    setTriggeringPlag(true);
+    setTrigPlag(true);
     try {
-      await api.post(`/api/documents/${id}/analyze/plagiarism`);
-      toast.success('Plagiarism scan started!');
-      setDoc(prev => prev ? { ...prev, plagiarism_scan_status: 'queued' } : null);
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to start plagiarism scan');
+      await documentApi.startPlagiarismScan(id);
+      toast.success('Plagiarism scan queued!');
+      setDoc((prev) => prev ? { ...prev, plagiarism_scan_status: 'queued' } : null);
+    } catch {
+      toast.error('Failed to start plagiarism scan.');
     } finally {
-      setTriggeringPlag(false);
+      setTrigPlag(false);
     }
   };
 
   const downloadReport = async () => {
+    setDownloading(true);
     try {
-      setDownloading(true);
-      const res = await api.get(`/api/documents/${id}/download-report`, {
-        responseType: 'blob',
-      });
-      const blob = new Blob([res.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      
-      const safeFilename = doc?.original_file_name || 'report';
-      const cleanName = safeFilename.replace(/[^a-zA-Z0-9._-]/g, '');
-      link.setAttribute('download', `Originality_Report_${cleanName.split('.')[0]}.pdf`);
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success('Report downloaded successfully!');
-    } catch (error) {
-      console.error('Failed to download report', error);
-      toast.error('Failed to generate downloadable PDF report.');
+      const res = await documentApi.downloadReport(id);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      const safe = (doc?.original_file_name ?? 'report').replace(/[^a-zA-Z0-9._-]/g, '');
+      a.download = `Originality_Report_${safe.split('.')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Report downloaded!');
+    } catch {
+      toast.error('Failed to generate PDF report.');
     } finally {
       setDownloading(false);
     }
   };
 
-  // HTML Highlighting Logic (identical to PDF engine)
-  const getHighlightedHtml = () => {
-    if (!doc) return '';
-    const text = doc.extracted_text || '';
-    const n = text.length;
-    const charTags = new Array(n).fill(0); // 0 = normal, 1 = AI, 2 = Plagiarism
+  // ── Derived state ──
+  const aiStatus   = doc?.ai_scan_status;
+  const plagStatus = doc?.plagiarism_scan_status;
+  const aiOk   = aiStatus === 'completed';
+  const plagOk  = plagStatus === 'completed';
+  const reportReady = aiOk && plagOk;
+  const plagScore = doc?.plagiarism_result?.plagiarism_score ?? null;
+  const aiScore   = doc?.ai_result?.ai_score ?? null;
 
-    // 1. Mark plagiarism
-    if (doc.plagiarism_result?.chunks) {
-      doc.plagiarism_result.chunks.forEach(chunk => {
-        if (chunk.plagiarism_score >= 20) {
-          const chunkText = chunk.text;
-          let start = 0;
-          while (true) {
-            const idx = text.indexOf(chunkText, start);
-            if (idx === -1) break;
-            for (let i = idx; i < idx + chunkText.length; i++) {
-              charTags[i] = 2;
-            }
-            start = idx + 1;
-          }
-        }
-      });
-      
-      doc.plagiarism_result.matched_sources?.forEach(source => {
-        if (source.similarity_score >= 20 && source.matched_text) {
-          const matched = source.matched_text;
-          let start = 0;
-          while (true) {
-            const idx = text.indexOf(matched, start);
-            if (idx === -1) break;
-            for (let i = idx; i < idx + matched.length; i++) {
-              charTags[i] = 2;
-            }
-            start = idx + 1;
-          }
-        }
-      });
-    }
+  const highlightedHtml = useMemo(() => buildHighlightedHtml(doc), [doc]);
 
-    // 2. Mark AI
-    if (doc.ai_result?.ai_score > 15) {
-      const aiScore = doc.ai_result.ai_score;
-      const sentenceEnds = [];
-      const sentenceRegex = /[^.!?]+[.!?]+/g;
-      let match;
-      while ((match = sentenceRegex.exec(text)) !== null) {
-        sentenceEnds.push(sentenceRegex.lastIndex);
-      }
-      
-      const sentences = [];
-      let lastIdx = 0;
-      sentenceEnds.forEach(end => {
-        sentences.push([lastIdx, end]);
-        lastIdx = end;
-      });
-      if (lastIdx < n) {
-        sentences.push([lastIdx, n]);
-      }
-
-      const aiKeywords = [
-        "delve", "tapestry", "moreover", "furthermore", "testament", "notably", 
-        "in conclusion", "it is important to note", "consequently", "pivotal",
-        "beacon", "comprehensive", "demystify", "multifaceted", "paramount"
-      ];
-
-      const sentenceScores = sentences.map(([start, end]) => {
-        const sentText = text.substring(start, end).toLowerCase();
-        let score = 0;
-        aiKeywords.forEach(kw => {
-          if (sentText.includes(kw)) score += 10;
-        });
-        return { score, start, end };
-      });
-
-      const numToHighlight = Math.floor(sentences.length * (aiScore / 100));
-      const sortedSentences = [...sentenceScores].sort((a, b) => b.score - a.score);
-      const highlighted = sortedSentences.slice(0, Math.max(numToHighlight, 1));
-
-      highlighted.forEach(({ start, end }) => {
-        for (let i = start; i < end; i++) {
-          if (charTags[i] === 0) {
-            charTags[i] = 1;
-          }
-        }
-      });
-    }
-
-    // 3. Construct HTML
-    const htmlParts = [];
-    let currentTag = 0;
-
-    const escapeHtml = (char) => {
-      if (char === '&') return '&amp;';
-      if (char === '<') return '&lt;';
-      if (char === '>') return '&gt;';
-      if (char === '\n') return '<br/>';
-      return char;
-    };
-
-    for (let i = 0; i < n; i++) {
-      const tag = charTags[i];
-      if (tag !== currentTag) {
-        if (currentTag === 1 || currentTag === 2) {
-          htmlParts.push('</mark>');
-        }
-        if (tag === 1) {
-          htmlParts.push('<mark class="bg-blue-100/80 text-blue-900 border-b border-blue-200 px-0.5 rounded-sm">');
-        } else if (tag === 2) {
-          htmlParts.push('<mark class="bg-red-100/80 text-red-900 border-b border-red-200 px-0.5 rounded-sm">');
-        }
-        currentTag = tag;
-      }
-      htmlParts.push(escapeHtml(text[i]));
-    }
-
-    if (currentTag === 1 || currentTag === 2) {
-      htmlParts.push('</mark>');
-    }
-
-    return htmlParts.join("");
-  };
-
+  // ── Loading skeleton ──
   if (loading) {
     return (
-      <div className="fade-in max-w-4xl mx-auto text-center py-20">
-        <div className="w-16 h-16 border-4 border-slate-200 border-t-accent-primary rounded-full animate-spin mx-auto mb-6" />
-        <h2 className="text-xl font-bold text-text-primary mb-2">Loading Report...</h2>
-        <p className="text-text-secondary">Retrieving submission details from ScanVault.</p>
+      <div className="fade-in max-w-5xl mx-auto text-center py-24">
+        <div className="w-14 h-14 border-4 border-slate-200 border-t-accent-primary rounded-full animate-spin mx-auto mb-6" />
+        <h2 className="text-xl font-bold text-text-primary mb-2">Loading Report…</h2>
+        <p className="text-text-secondary text-sm">Retrieving submission details.</p>
       </div>
     );
   }
 
-  const isAiFailed = doc?.ai_scan_status === 'failed';
-  const isPlagFailed = doc?.plagiarism_scan_status === 'failed';
-
-  if (isAiFailed && isPlagFailed) {
+  // ── Both failed ──
+  if (aiStatus === 'failed' && plagStatus === 'failed') {
     return (
       <div className="fade-in max-w-4xl mx-auto py-10">
-        <div className="clean-card p-12 text-center bg-red-50 border-red-200">
-          <HiOutlineExclamationCircle className="text-5xl text-red-600 mx-auto mb-4" />
+        <div className="clean-card p-14 text-center border-red-200 bg-red-50">
+          <HiOutlineExclamationCircle className="text-5xl text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-red-700 mb-2">Analysis Failed</h2>
-          <p className="text-red-600 mb-6">Both AI detection and Plagiarism scans encountered errors.</p>
-          <Link to="/scan" className="btn-primary bg-red-600 hover:bg-red-700">Try Again</Link>
+          <p className="text-red-600 text-sm mb-6">Both AI detection and plagiarism scans encountered errors.</p>
+          <Link to="/upload" className="btn-primary bg-red-600 hover:bg-red-700">Try Again</Link>
         </div>
       </div>
     );
   }
-
-  const isAiCompleted = doc?.ai_scan_status === 'completed';
-  const isPlagCompleted = doc?.plagiarism_scan_status === 'completed';
-  const isReportReady = isAiCompleted && isPlagCompleted;
-
-  const plagiarismScore = doc?.plagiarism_result?.plagiarism_score || 0;
-  const aiScore = doc?.ai_result?.ai_score || 0;
-  
-  const isHighPlagiarism = plagiarismScore > 30;
-  const isHighAI = aiScore > 30;
 
   return (
     <div className="fade-in max-w-5xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link to="/history" className="w-10 h-10 bg-white border border-border rounded-lg flex items-center justify-center text-text-secondary hover:bg-slate-50 transition-colors shadow-sm">
+          <Link
+            to="/history"
+            className="w-10 h-10 bg-white border border-border rounded-xl flex items-center justify-center text-text-secondary hover:bg-slate-50 transition-colors shadow-sm"
+          >
             <HiOutlineChevronLeft className="text-xl" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
-              <HiOutlineDocumentText className="text-text-muted" /> {doc?.original_file_name}
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-text-primary flex items-center gap-2 truncate">
+              <HiOutlineDocumentText className="text-text-muted flex-shrink-0" />
+              <span className="truncate">{doc?.original_file_name}</span>
             </h1>
-            <p className="text-sm text-text-secondary mt-1">Uploaded on {new Date(doc?.created_at).toLocaleString()}</p>
+            <p className="text-sm text-text-secondary mt-0.5">
+              Uploaded {new Date(doc?.created_at).toLocaleString()}
+            </p>
           </div>
         </div>
-
         <button
           onClick={downloadReport}
-          disabled={downloading || !isReportReady}
-          className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-semibold shadow-sm transition-all duration-200 ${
-            isReportReady
-              ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
+          disabled={downloading || !reportReady}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm shadow-sm transition-all ${
+            reportReady
+              ? 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer shadow-blue-200'
               : 'bg-slate-100 text-slate-400 cursor-not-allowed'
           }`}
         >
           {downloading ? (
-            <>
-              <div className="w-4 h-4 border-2 border-slate-300 border-t-white rounded-full animate-spin" />
-              Generating PDF...
-            </>
+            <><div className="w-4 h-4 border-2 border-blue-300 border-t-white rounded-full animate-spin" /> Generating…</>
           ) : (
-            <>
-              <HiOutlineDownload className="text-lg" />
-              Download PDF Report
-            </>
+            <><HiOutlineDownload className="text-base" /> Download PDF Report</>
           )}
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Main Content Area */}
+        {/* ── Left column ── */}
         <div className="md:col-span-2 space-y-6">
-          {/* Summary Card */}
+          {/* Analysis Summaries */}
           <div className="clean-card p-6">
-            <h2 className="text-lg font-bold text-text-primary mb-4">Analysis Summaries</h2>
-            <div className="space-y-6">
+            <h2 className="text-base font-bold text-text-primary mb-5">Analysis Summaries</h2>
+            <div className="space-y-5">
+              {/* Plagiarism */}
               <div>
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Plagiarism Check</h4>
-                {isPlagCompleted ? (
-                  <p className="text-text-secondary leading-relaxed">{doc?.plagiarism_result?.summary}</p>
-                ) : isPlagFailed ? (
-                  <p className="text-red-600 text-sm flex items-center gap-1.5"><HiOutlineExclamationCircle /> Plagiarism check failed.</p>
-                ) : doc?.plagiarism_scan_status === 'queued' || doc?.plagiarism_scan_status === 'processing' ? (
-                  <p className="text-text-muted text-sm flex items-center gap-2 animate-pulse"><HiOutlineRefresh className="animate-spin text-red-600" /> Web search and plagiarism analysis in progress...</p>
+                {plagOk ? (
+                  <p className="text-text-secondary text-sm leading-relaxed">{doc?.plagiarism_result?.summary}</p>
+                ) : plagStatus === 'failed' ? (
+                  <p className="text-red-600 text-sm flex items-center gap-1.5">
+                    <HiOutlineExclamationCircle /> Plagiarism scan failed.
+                  </p>
+                ) : isActive(plagStatus) ? (
+                  <p className="text-sm text-text-muted flex items-center gap-2 animate-pulse">
+                    <HiOutlineRefresh className="animate-spin text-red-500" />
+                    Web search &amp; plagiarism analysis in progress…
+                  </p>
                 ) : (
-                  <div className="py-2">
-                    <p className="text-slate-500 text-sm mb-3">Plagiarism analysis has not been run for this document.</p>
+                  <div>
+                    <p className="text-sm text-slate-500 mb-3">Plagiarism analysis has not been run.</p>
                     <button
                       onClick={startPlagiarismScan}
-                      disabled={triggeringPlag}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 disabled:bg-red-300 transition-all shadow cursor-pointer"
+                      disabled={trigPlag}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 disabled:opacity-50 transition-all shadow cursor-pointer"
                     >
-                      {triggeringPlag ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-white rounded-full animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        'Start Plagiarism Scan'
-                      )}
+                      {trigPlag
+                        ? <><div className="w-3 h-3 border-2 border-red-300 border-t-white rounded-full animate-spin" /> Queuing…</>
+                        : 'Start Plagiarism Scan'}
                     </button>
                   </div>
                 )}
               </div>
-              
+
               <div className="border-t border-slate-100 pt-4">
                 <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">AI Detection</h4>
-                {isAiCompleted ? (
-                  <p className="text-text-secondary leading-relaxed">{doc?.ai_result?.summary}</p>
-                ) : isAiFailed ? (
-                  <p className="text-red-600 text-sm flex items-center gap-1.5"><HiOutlineExclamationCircle /> AI scan failed.</p>
-                ) : doc?.ai_scan_status === 'queued' || doc?.ai_scan_status === 'processing' ? (
-                  <p className="text-text-muted text-sm flex items-center gap-2 animate-pulse"><HiOutlineRefresh className="animate-spin text-blue-600" /> Analyzing sentence structures for AI signatures...</p>
+                {aiOk ? (
+                  <p className="text-text-secondary text-sm leading-relaxed">{doc?.ai_result?.summary}</p>
+                ) : aiStatus === 'failed' ? (
+                  <p className="text-red-600 text-sm flex items-center gap-1.5">
+                    <HiOutlineExclamationCircle /> AI scan failed.
+                  </p>
+                ) : isActive(aiStatus) ? (
+                  <p className="text-sm text-text-muted flex items-center gap-2 animate-pulse">
+                    <HiOutlineRefresh className="animate-spin text-blue-500" />
+                    Analysing sentence structures for AI signatures…
+                  </p>
                 ) : (
-                  <div className="py-2">
-                    <p className="text-slate-500 text-sm mb-3">AI signature detection has not been run for this document.</p>
+                  <div>
+                    <p className="text-sm text-slate-500 mb-3">AI detection has not been run.</p>
                     <button
                       onClick={startAiScan}
-                      disabled={triggeringAi}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 disabled:bg-blue-300 transition-all shadow cursor-pointer"
+                      disabled={trigAi}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition-all shadow cursor-pointer"
                     >
-                      {triggeringAi ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-white rounded-full animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        'Start AI Scan'
-                      )}
+                      {trigAi
+                        ? <><div className="w-3 h-3 border-2 border-blue-300 border-t-white rounded-full animate-spin" /> Queuing…</>
+                        : 'Start AI Scan'}
                     </button>
                   </div>
                 )}
@@ -369,180 +444,101 @@ export default function ScanReport() {
             </div>
           </div>
 
-          {/* Highlighted text panel */}
+          {/* Highlighted Text */}
           <div className="clean-card p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-text-primary">Submission Document Text</h2>
-              <div className="flex items-center gap-4 text-xs font-semibold">
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-red-100 border-b border-red-200 rounded-sm inline-block" /> Plagiarism</span>
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-blue-100 border-b border-blue-200 rounded-sm inline-block" /> AI Writing</span>
+              <h2 className="text-base font-bold text-text-primary">Submission Text</h2>
+              <div className="flex items-center gap-4 text-xs font-semibold text-text-secondary">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-red-100 border border-red-300 inline-block" />
+                  Plagiarism
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300 inline-block" />
+                  AI Writing
+                </span>
               </div>
             </div>
-            <div 
-              className="bg-slate-50 border border-border rounded-lg p-6 max-h-[600px] overflow-y-auto font-serif text-base text-text-primary leading-loose whitespace-pre-wrap selection:bg-yellow-200"
-              dangerouslySetInnerHTML={{ __html: getHighlightedHtml() }}
+            <div
+              className="bg-slate-50 border border-border rounded-xl p-6 max-h-[600px] overflow-y-auto font-serif text-base text-text-primary leading-loose selection:bg-yellow-200 custom-scrollbar"
+              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
             />
           </div>
         </div>
 
-        {/* Sidebar Analytics */}
-        <div className="space-y-6">
-          {/* Similarity Score */}
-          <div className="clean-card p-6 text-center">
-            <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6">Similarity Score</h3>
-            
-            {isPlagCompleted ? (
-              <div className="relative w-40 h-40 mx-auto mb-6">
-                <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={isHighPlagiarism ? '#ef4444' : '#10b981'} strokeWidth="3" strokeDasharray={`${plagiarismScore}, 100`} />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className={`text-4xl font-bold ${isHighPlagiarism ? 'text-red-600' : 'text-emerald-600'}`}>{plagiarismScore}%</span>
-                </div>
-              </div>
-            ) : isPlagFailed ? (
-              <div className="py-10 text-red-500">
-                <HiOutlineExclamationCircle className="text-4xl mx-auto mb-2" />
-                <span className="text-sm font-medium">Plagiarism Check Failed</span>
-              </div>
-            ) : doc?.plagiarism_scan_status === 'queued' || doc?.plagiarism_scan_status === 'processing' ? (
-              <div className="py-10 text-slate-400 animate-pulse">
-                <HiOutlineRefresh className="text-4xl mx-auto mb-2 animate-spin text-accent-primary" />
-                <span className="text-sm font-medium">Scanning Web Sources...</span>
-              </div>
-            ) : (
-              <div className="py-10 text-slate-400">
-                <p className="text-sm font-semibold mb-3">Scan Not Started</p>
-                <button
-                  onClick={startPlagiarismScan}
-                  disabled={triggeringPlag}
-                  className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 disabled:bg-red-50/50 transition-all cursor-pointer shadow-sm"
-                >
-                  {triggeringPlag ? 'Processing...' : 'Run Scan'}
-                </button>
-              </div>
-            )}
-          </div>
+        {/* ── Right sidebar ── */}
+        <div className="space-y-5">
+          {/* Similarity gauge */}
+          <ScoreGauge
+            label="Similarity Score"
+            score={plagOk ? plagScore : null}
+            color={plagScore > 50 ? 'red' : plagScore > 0 ? 'amber' : 'green'}
+            loading={isActive(plagStatus)}
+            failed={plagStatus === 'failed'}
+            onRun={startPlagiarismScan}
+            running={trigPlag}
+          />
 
-          {/* AI Detection Score */}
-          <div className="clean-card p-6 text-center">
-            <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-6">AI Detection</h3>
-            
-            {isAiCompleted ? (
-              <div className="relative w-40 h-40 mx-auto mb-6">
-                <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={isHighAI ? '#ef4444' : '#10b981'} strokeWidth="3" strokeDasharray={`${aiScore}, 100`} />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className={`text-4xl font-bold ${isHighAI ? 'text-red-600' : 'text-emerald-600'}`}>{aiScore}%</span>
-                </div>
-              </div>
-            ) : isAiFailed ? (
-              <div className="py-10 text-red-500">
-                <HiOutlineExclamationCircle className="text-4xl mx-auto mb-2" />
-                <span className="text-sm font-medium">AI Analysis Failed</span>
-              </div>
-            ) : doc?.ai_scan_status === 'queued' || doc?.ai_scan_status === 'processing' ? (
-              <div className="py-10 text-slate-400 animate-pulse">
-                <HiOutlineRefresh className="text-4xl mx-auto mb-2 animate-spin text-accent-primary" />
-                <span className="text-sm font-medium">Analyzing Writing Patterns...</span>
-              </div>
-            ) : (
-              <div className="py-10 text-slate-400">
-                <p className="text-sm font-semibold mb-3">Scan Not Started</p>
-                <button
-                  onClick={startAiScan}
-                  disabled={triggeringAi}
-                  className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-100 disabled:bg-blue-50/50 transition-all cursor-pointer shadow-sm"
-                >
-                  {triggeringAi ? 'Processing...' : 'Run Scan'}
-                </button>
-              </div>
-            )}
-          </div>
+          {/* AI gauge */}
+          <ScoreGauge
+            label="AI Detection"
+            score={aiOk ? aiScore : null}
+            color={aiScore > 50 ? 'red' : aiScore > 0 ? 'amber' : 'green'}
+            loading={isActive(aiStatus)}
+            failed={aiStatus === 'failed'}
+            onRun={startAiScan}
+            running={trigAi}
+          />
 
-          {/* Integrity Overview Card */}
-          <div className="clean-card p-6">
-            <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4">Integrity Overview</h3>
-            
-            {doc?.integrity_flags && doc.integrity_flags.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700">
-                  <HiOutlineExclamationCircle className="text-2xl flex-shrink-0 animate-bounce" />
-                  <div className="text-left">
-                    <p className="text-sm font-bold">{doc.integrity_flags.length} Integrity Warning(s)</p>
-                    <p className="text-xs text-red-600">Possible scan evasion tactics detected.</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {doc.integrity_flags.map((flag, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-left">
-                      <p className="text-xs font-bold text-red-600 uppercase tracking-wider">{flag.type}</p>
-                      <p className="text-sm text-text-primary mt-1 leading-relaxed">{flag.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold">0 Integrity Flags</p>
-                  <p className="text-xs text-emerald-600">No evasion tactics detected.</p>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Integrity Card */}
+          <IntegrityCard flags={doc?.integrity_flags} />
 
-          {/* Document Metadata Card */}
+          {/* Document Metadata */}
           {doc?.metadata && (
-            <div className="clean-card p-6 text-left">
-              <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4">Document Metadata</h3>
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  <p className="text-text-secondary font-medium mb-0.5">Pages</p>
-                  <p className="text-base font-bold text-text-primary">{doc.metadata.page_count || 1}</p>
-                </div>
-                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  <p className="text-text-secondary font-medium mb-0.5">Tokens / Words</p>
-                  <p className="text-base font-bold text-text-primary">{doc.metadata.token_count || 0}</p>
-                </div>
-                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  <p className="text-text-secondary font-medium mb-0.5">Characters</p>
-                  <p className="text-base font-bold text-text-primary">{doc.metadata.character_count || 0}</p>
-                </div>
-                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                  <p className="text-text-secondary font-medium mb-0.5">File Size</p>
-                  <p className="text-base font-bold text-text-primary">
-                    {doc.metadata.file_size ? `${(doc.metadata.file_size / 1024).toFixed(1)} KB` : 'N/A'}
-                  </p>
-                </div>
+            <div className="clean-card p-5">
+              <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">
+                Document Metadata
+              </h3>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                {[
+                  { label: 'Pages',      value: doc.metadata.page_count ?? 1 },
+                  { label: 'Words',      value: (doc.metadata.token_count ?? 0).toLocaleString() },
+                  { label: 'Characters', value: (doc.metadata.character_count ?? 0).toLocaleString() },
+                  { label: 'File Size',  value: doc.metadata.file_size ? `${(doc.metadata.file_size / 1024).toFixed(1)} KB` : 'N/A' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1">{label}</p>
+                    <p className="text-base font-bold text-text-primary">{value}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* Matched Sources */}
-          {doc?.plagiarism_result?.matched_sources?.length > 0 && (
+          {(doc?.plagiarism_result?.matched_sources?.length ?? 0) > 0 && (
             <div className="clean-card overflow-hidden">
-              <div className="p-4 border-b border-border bg-slate-50">
-                <h3 className="text-sm font-semibold text-text-primary">Matched Sources</h3>
+              <div className="px-5 py-3 border-b border-border bg-slate-50">
+                <h3 className="text-xs font-semibold text-text-primary uppercase tracking-wider">Matched Sources</h3>
               </div>
               <div className="divide-y divide-border">
-                {doc.plagiarism_result.matched_sources.map((source, idx) => (
-                  <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-accent-primary hover:underline break-all flex items-start gap-1">
-                        <HiOutlineExternalLink className="flex-shrink-0 mt-1" />
-                        {source.url}
+                {doc.plagiarism_result.matched_sources.map((src, i) => (
+                  <div key={i} className="px-5 py-3 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <a
+                        href={src.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-medium text-accent-primary hover:underline break-all flex items-start gap-1"
+                      >
+                        <HiOutlineExternalLink className="flex-shrink-0 mt-0.5" />
+                        {src.url}
                       </a>
-                      <span className="text-sm font-bold text-red-600 bg-red-50 px-2 py-1 rounded">{source.similarity_score}%</span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
+                        src.similarity_score > 50 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {src.similarity_score}%
+                      </span>
                     </div>
                   </div>
                 ))}
