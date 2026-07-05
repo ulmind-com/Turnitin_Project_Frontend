@@ -91,30 +91,64 @@ export default function Dashboard() {
         
         <div className="p-0">
           {stats?.recent_scans?.length > 0 ? (
-            <div className="divide-y divide-border">
-              {stats.recent_scans.map((doc) => (
-                <Link key={doc.id} to={`/report/${doc.id}`} className="block p-6 hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                        <HiOutlineDocumentText className="text-xl text-accent-primary" />
+            <div className="overflow-x-auto">
+              <div className="min-w-[768px]">
+                <div className="grid grid-cols-12 gap-4 p-4 px-6 border-b border-border bg-slate-50 text-xs font-semibold text-text-secondary uppercase tracking-wider">
+                  <div className="col-span-4">Document</div>
+                  <div className="col-span-2">Date</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-2 text-center">Similarity</div>
+                  <div className="col-span-2 text-right">Action</div>
+                </div>
+                <div className="divide-y divide-border bg-white">
+                  {stats.recent_scans.map((doc) => {
+                    const getCombinedStatus = (d) => {
+                      const ai = d.ai_scan_status;
+                      const plag = d.plagiarism_scan_status;
+                      if (ai === 'failed' || plag === 'failed') return 'failed';
+                      if (ai === 'completed' && plag === 'completed') return 'completed';
+                      if (ai === 'processing' || plag === 'processing' || ai === 'queued' || plag === 'queued') return 'processing';
+                      return 'pending';
+                    };
+                    const status = getCombinedStatus(doc);
+                    return (
+                      <div key={doc.id} className="grid grid-cols-12 gap-4 p-4 px-6 items-center hover:bg-slate-50 transition-colors group">
+                        <div className="col-span-4 flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-accent-primary group-hover:text-white transition-colors text-accent-primary">
+                            <HiOutlineDocumentText className="text-xl" />
+                          </div>
+                          <span className="font-semibold text-text-primary truncate">{doc.original_file_name}</span>
+                        </div>
+                        
+                        <div className="col-span-2 text-sm text-text-secondary">
+                          {new Date(doc.created_at).toLocaleDateString()}
+                        </div>
+                        
+                        <div className="col-span-2">
+                          <span className={`badge ${status === 'completed' ? 'badge-success' : status === 'processing' ? 'badge-warning' : status === 'failed' ? 'badge-danger' : 'badge-info'}`}>
+                            {status}
+                          </span>
+                        </div>
+                        
+                        <div className="col-span-2 text-center">
+                          <span className={`font-bold ${status === 'completed' ? (doc.plagiarism_score > 30 ? 'text-red-600' : 'text-emerald-600') : 'text-slate-400'}`}>
+                            {status === 'completed' ? `${doc.plagiarism_score}%` : '—'}
+                          </span>
+                        </div>
+                        
+                        <div className="col-span-2 text-right flex justify-end gap-2">
+                          <Link to={`/report/${doc.id}`} className="text-xs font-bold text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg px-2.5 py-1.5 hover:bg-slate-50 transition-all">
+                            Report
+                          </Link>
+                          <Link to={`/feedback-studio/${doc.id}`} className="text-xs font-bold text-blue-600 hover:text-white border border-blue-200 hover:border-blue-600 rounded-lg px-2.5 py-1.5 hover:bg-blue-600 transition-all">
+                            Grade
+                          </Link>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-text-primary">{doc.original_file_name}</p>
-                        <p className="text-xs text-text-muted mt-1">{new Date(doc.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="text-right">
-                        <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Similarity</p>
-                        <p className={`font-bold ${doc.scan_status === 'completed' ? (doc.plagiarism_score > 30 ? 'text-red-600' : 'text-emerald-600') : 'text-slate-400'}`}>
-                          {doc.scan_status === 'completed' ? `${doc.plagiarism_score}%` : 'Pending'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="p-12 text-center text-text-secondary">

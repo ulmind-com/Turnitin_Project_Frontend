@@ -17,6 +17,9 @@ export default function ScanReport() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
 
+  const [triggeringAi, setTriggeringAi] = useState(false);
+  const [triggeringPlag, setTriggeringPlag] = useState(false);
+
   useEffect(() => {
     let intervalId;
     
@@ -25,40 +28,53 @@ export default function ScanReport() {
         const res = await api.get(`/api/documents/${id}`);
         setDoc(res.data);
         setLoading(false);
-
-        // Automatically trigger scans if they haven't been started yet
-        if (res.data.ai_scan_status === null) {
-          api.post(`/api/documents/${id}/analyze/ai`).catch(err => {
-            console.error('Failed to auto-start AI scan', err);
-          });
-          // Optimistically update status to queued to show progress
-          setDoc(prev => prev ? { ...prev, ai_scan_status: 'queued' } : null);
-        }
-        if (res.data.plagiarism_scan_status === null) {
-          api.post(`/api/documents/${id}/analyze/plagiarism`).catch(err => {
-            console.error('Failed to auto-start Plagiarism scan', err);
-          });
-          setDoc(prev => prev ? { ...prev, plagiarism_scan_status: 'queued' } : null);
-        }
-
-        // Check if both scans are in a terminal state (completed or failed)
-        const isAiTerminal = res.data.ai_scan_status === 'completed' || res.data.ai_scan_status === 'failed';
-        const isPlagTerminal = res.data.plagiarism_scan_status === 'completed' || res.data.plagiarism_scan_status === 'failed';
-
-        if (isAiTerminal && isPlagTerminal) {
-          clearInterval(intervalId);
-        }
       } catch (error) {
         console.error('Failed to fetch document', error);
-        clearInterval(intervalId);
         setLoading(false);
       }
     };
 
     fetchDoc();
-    intervalId = setInterval(fetchDoc, 4000);
-    return () => clearInterval(intervalId);
-  }, [id]);
+
+    const isAiActive = doc?.ai_scan_status === 'queued' || doc?.ai_scan_status === 'processing';
+    const isPlagActive = doc?.plagiarism_scan_status === 'queued' || doc?.plagiarism_scan_status === 'processing';
+
+    if (isAiActive || isPlagActive) {
+      intervalId = setInterval(fetchDoc, 4000);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [id, doc?.ai_scan_status, doc?.plagiarism_scan_status]);
+
+  const startAiScan = async () => {
+    setTriggeringAi(true);
+    try {
+      await api.post(`/api/documents/${id}/analyze/ai`);
+      toast.success('AI Detection scan started!');
+      setDoc(prev => prev ? { ...prev, ai_scan_status: 'queued' } : null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to start AI scan');
+    } finally {
+      setTriggeringAi(false);
+    }
+  };
+
+  const startPlagiarismScan = async () => {
+    setTriggeringPlag(true);
+    try {
+      await api.post(`/api/documents/${id}/analyze/plagiarism`);
+      toast.success('Plagiarism scan started!');
+      setDoc(prev => prev ? { ...prev, plagiarism_scan_status: 'queued' } : null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to start plagiarism scan');
+    } finally {
+      setTriggeringPlag(false);
+    }
+  };
 
   const downloadReport = async () => {
     try {
@@ -292,26 +308,62 @@ export default function ScanReport() {
           {/* Summary Card */}
           <div className="clean-card p-6">
             <h2 className="text-lg font-bold text-text-primary mb-4">Analysis Summaries</h2>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Plagiarism Check</h4>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Plagiarism Check</h4>
                 {isPlagCompleted ? (
                   <p className="text-text-secondary leading-relaxed">{doc?.plagiarism_result?.summary}</p>
                 ) : isPlagFailed ? (
                   <p className="text-red-600 text-sm flex items-center gap-1.5"><HiOutlineExclamationCircle /> Plagiarism check failed.</p>
+                ) : doc?.plagiarism_scan_status === 'queued' || doc?.plagiarism_scan_status === 'processing' ? (
+                  <p className="text-text-muted text-sm flex items-center gap-2 animate-pulse"><HiOutlineRefresh className="animate-spin text-red-600" /> Web search and plagiarism analysis in progress...</p>
                 ) : (
-                  <p className="text-text-muted text-sm flex items-center gap-2 animate-pulse"><HiOutlineRefresh className="animate-spin" /> Web search and plagiarism analysis in progress...</p>
+                  <div className="py-2">
+                    <p className="text-slate-500 text-sm mb-3">Plagiarism analysis has not been run for this document.</p>
+                    <button
+                      onClick={startPlagiarismScan}
+                      disabled={triggeringPlag}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 disabled:bg-red-300 transition-all shadow cursor-pointer"
+                    >
+                      {triggeringPlag ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-white rounded-full animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Start Plagiarism Scan'
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
               
               <div className="border-t border-slate-100 pt-4">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">AI Detection</h4>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">AI Detection</h4>
                 {isAiCompleted ? (
                   <p className="text-text-secondary leading-relaxed">{doc?.ai_result?.summary}</p>
                 ) : isAiFailed ? (
                   <p className="text-red-600 text-sm flex items-center gap-1.5"><HiOutlineExclamationCircle /> AI scan failed.</p>
+                ) : doc?.ai_scan_status === 'queued' || doc?.ai_scan_status === 'processing' ? (
+                  <p className="text-text-muted text-sm flex items-center gap-2 animate-pulse"><HiOutlineRefresh className="animate-spin text-blue-600" /> Analyzing sentence structures for AI signatures...</p>
                 ) : (
-                  <p className="text-text-muted text-sm flex items-center gap-2 animate-pulse"><HiOutlineRefresh className="animate-spin" /> Analyzing sentence structures for AI signatures...</p>
+                  <div className="py-2">
+                    <p className="text-slate-500 text-sm mb-3">AI signature detection has not been run for this document.</p>
+                    <button
+                      onClick={startAiScan}
+                      disabled={triggeringAi}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 disabled:bg-blue-300 transition-all shadow cursor-pointer"
+                    >
+                      {triggeringAi ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-slate-300 border-t-white rounded-full animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Start AI Scan'
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -354,10 +406,21 @@ export default function ScanReport() {
                 <HiOutlineExclamationCircle className="text-4xl mx-auto mb-2" />
                 <span className="text-sm font-medium">Plagiarism Check Failed</span>
               </div>
-            ) : (
+            ) : doc?.plagiarism_scan_status === 'queued' || doc?.plagiarism_scan_status === 'processing' ? (
               <div className="py-10 text-slate-400 animate-pulse">
                 <HiOutlineRefresh className="text-4xl mx-auto mb-2 animate-spin text-accent-primary" />
                 <span className="text-sm font-medium">Scanning Web Sources...</span>
+              </div>
+            ) : (
+              <div className="py-10 text-slate-400">
+                <p className="text-sm font-semibold mb-3">Scan Not Started</p>
+                <button
+                  onClick={startPlagiarismScan}
+                  disabled={triggeringPlag}
+                  className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold hover:bg-red-100 disabled:bg-red-50/50 transition-all cursor-pointer shadow-sm"
+                >
+                  {triggeringPlag ? 'Processing...' : 'Run Scan'}
+                </button>
               </div>
             )}
           </div>
@@ -381,10 +444,21 @@ export default function ScanReport() {
                 <HiOutlineExclamationCircle className="text-4xl mx-auto mb-2" />
                 <span className="text-sm font-medium">AI Analysis Failed</span>
               </div>
-            ) : (
+            ) : doc?.ai_scan_status === 'queued' || doc?.ai_scan_status === 'processing' ? (
               <div className="py-10 text-slate-400 animate-pulse">
                 <HiOutlineRefresh className="text-4xl mx-auto mb-2 animate-spin text-accent-primary" />
                 <span className="text-sm font-medium">Analyzing Writing Patterns...</span>
+              </div>
+            ) : (
+              <div className="py-10 text-slate-400">
+                <p className="text-sm font-semibold mb-3">Scan Not Started</p>
+                <button
+                  onClick={startAiScan}
+                  disabled={triggeringAi}
+                  className="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-100 disabled:bg-blue-50/50 transition-all cursor-pointer shadow-sm"
+                >
+                  {triggeringAi ? 'Processing...' : 'Run Scan'}
+                </button>
               </div>
             )}
           </div>

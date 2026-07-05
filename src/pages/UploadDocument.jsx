@@ -138,10 +138,10 @@ export default function UploadDocument() {
                   </button>
                   <button 
                     onClick={handleUpload} 
-                    className="btn-primary text-sm min-w-[140px]" 
+                    className="btn-primary text-sm min-w-[180px]" 
                     disabled={loading}
                   >
-                    {loading ? 'Processing...' : 'Start Scan'}
+                    {loading ? 'Processing...' : 'Upload & Consume Credit'}
                   </button>
                 </div>
               </div>
