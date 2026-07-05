@@ -7,6 +7,15 @@ export default function ScanHistory() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const getCombinedStatus = (doc) => {
+    const ai = doc.ai_scan_status;
+    const plag = doc.plagiarism_scan_status;
+    if (ai === 'failed' || plag === 'failed') return 'failed';
+    if (ai === 'completed' && plag === 'completed') return 'completed';
+    if (ai === 'processing' || plag === 'processing' || ai === 'queued' || plag === 'queued') return 'processing';
+    return 'pending';
+  };
+
   useEffect(() => {
     const fetchDocs = async () => {
       try {
@@ -45,38 +54,41 @@ export default function ScanHistory() {
             <div className="col-span-2 text-right">Action</div>
           </div>
           <div className="divide-y divide-border bg-white">
-            {documents.map((doc) => (
-              <div key={doc.id} className="grid grid-cols-12 gap-4 p-4 px-6 items-center hover:bg-slate-50 transition-colors group">
-                <div className="col-span-4 flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-accent-primary group-hover:text-white transition-colors text-accent-primary">
-                    <HiOutlineDocumentText className="text-xl" />
+            {documents.map((doc) => {
+              const status = getCombinedStatus(doc);
+              return (
+                <div key={doc.id} className="grid grid-cols-12 gap-4 p-4 px-6 items-center hover:bg-slate-50 transition-colors group">
+                  <div className="col-span-4 flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 group-hover:bg-accent-primary group-hover:text-white transition-colors text-accent-primary">
+                      <HiOutlineDocumentText className="text-xl" />
+                    </div>
+                    <span className="font-semibold text-text-primary truncate">{doc.original_file_name}</span>
                   </div>
-                  <span className="font-semibold text-text-primary truncate">{doc.original_file_name}</span>
+                  
+                  <div className="col-span-2 text-sm text-text-secondary">
+                    {new Date(doc.created_at).toLocaleDateString()}
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <span className={`badge ${status === 'completed' ? 'badge-success' : status === 'processing' ? 'badge-warning' : status === 'failed' ? 'badge-danger' : 'badge-info'}`}>
+                      {status}
+                    </span>
+                  </div>
+                  
+                  <div className="col-span-2 text-center">
+                    <span className={`font-bold ${status === 'completed' ? (doc.plagiarism_score > 30 ? 'text-red-600' : 'text-emerald-600') : 'text-slate-400'}`}>
+                      {status === 'completed' ? `${doc.plagiarism_score}%` : '—'}
+                    </span>
+                  </div>
+                  
+                  <div className="col-span-2 text-right">
+                    <Link to={`/report/${doc.id}`} className="text-sm font-semibold text-accent-primary hover:underline">
+                      View Report
+                    </Link>
+                  </div>
                 </div>
-                
-                <div className="col-span-2 text-sm text-text-secondary">
-                  {new Date(doc.created_at).toLocaleDateString()}
-                </div>
-                
-                <div className="col-span-2">
-                  <span className={`badge ${doc.scan_status === 'completed' ? 'badge-success' : doc.scan_status === 'processing' ? 'badge-warning' : doc.scan_status === 'failed' ? 'badge-danger' : 'badge-info'}`}>
-                    {doc.scan_status}
-                  </span>
-                </div>
-                
-                <div className="col-span-2 text-center">
-                  <span className={`font-bold ${doc.scan_status === 'completed' ? (doc.plagiarism_score > 30 ? 'text-red-600' : 'text-emerald-600') : 'text-slate-400'}`}>
-                    {doc.scan_status === 'completed' ? `${doc.plagiarism_score}%` : '—'}
-                  </span>
-                </div>
-                
-                <div className="col-span-2 text-right">
-                  <Link to={`/report/${doc.id}`} className="text-sm font-semibold text-accent-primary hover:underline">
-                    View Report
-                  </Link>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
